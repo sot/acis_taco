@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 import numpy as np
-import Quaternion
+from Quaternion import Quat
 from itertools import repeat
 import matplotlib.pyplot as plt
 
 Rad_Earth = 6371e3
 
 def make_taco():
-    x = [0.0, -0.6, -0.5, -0.3, 0.0]
-    y = [0.0,  0.2,  0.5,  0.8, 1.0]
-    z = [0.1,  0.5]
-    p = np.array([zip(x, y, repeat(z[0])),
-                  zip(x, y, repeat(z[1]))])
+    x = [-0.2,  0.2]
+    y = [-0.5,  -0.3,  0.0,  0.3, 0.5]
+    z = [0.0, 0.6, 0.5, 0.3, 0.0]
+    p = np.array([zip(repeat(x[0]), y, z),
+                  zip(repeat(x[1]), y, z)])
     planes = [Plane(p[0,0], p[0,1], p[0,2]),
               Plane(p[0,0], p[0,2], p[0,3]),
               Plane(p[0,0], p[0,3], p[0,4]),
@@ -24,7 +24,7 @@ def make_taco():
     return planes
 
 def make_radiator():
-    return np.array([[-.1, 0.5, 0.3]])
+    return np.array([[0.0, 0.0, 0.1]])
 
 class Line(object):
     """Line from p0 to p1"""
@@ -111,15 +111,16 @@ def quat_x_v2(v2):
     axis = norm(np.cross(x, v2))
     sin_a = np.sin(angle / 2)
     cos_a = np.cos(angle / 2)
-    return Quaternion.Quat([axis[0] * sin_a,
+    return Quat([axis[0] * sin_a,
                             axis[1] * sin_a,
                             axis[2] * sin_a,
                             cos_a])
 
-def calc_earth_vis(p_chandra_eci, chandra_att,
+def calc_earth_vis(p_chandra_eci,
+                   chandra_att,
+                   ngrid=1000,
                    planes=make_taco(),
-                   p_radiators=make_radiator(),
-                   ngrid=1000):
+                   p_radiators=make_radiator(),):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
@@ -128,12 +129,16 @@ def calc_earth_vis(p_chandra_eci, chandra_att,
 
     :param p_chandra_eci: Chandra orbital position [x, y, z] (meters)
     :param chandra_att: Chandra attitude [ra, dec, roll] (deg)
+    :param ngrid: number of points on visible Earth to raytrace
+    :param planes: list of Plane objects defining structure
+    :param p_radiators: points on radiator surface
 
     :returns: relative visibility
     """
-    # Calculate position of earth in ECI and Chandra body coords
+    # Calculate position of earth in ECI and Chandra body coords.  
+    # Quat([1,0,0,0]) is a 180 deg roll that puts -Z "up"
+    q_att = Quat(chandra_att) * Quat([1,0,0,0.])
     # For T = attitude transformation matrix then p_body = T^-1 p_eci
-    q_att = Quaternion.Quat(chandra_att)
     p_earth_body = np.dot(q_att.transform.transpose(), -p_chandra_eci)
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
@@ -146,7 +151,7 @@ def calc_earth_vis(p_chandra_eci, chandra_att,
     visible = np.zeros((len(rays),), int)
 
     for p_radiator in p_radiators:
-        for i_ray, ray in enumerate(rays_to_earth*1000.):
+        for i_ray, ray in enumerate(rays_to_earth + p_radiator):
             line = Line(p_radiator, ray)
             for plane in planes:
                 if plane_line_intersect(plane, line):
