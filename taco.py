@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 Rad_Earth = 6371e3
 
 def make_taco():
-    x = [-0.2,  0.2]
-    y = [-0.5,  -0.3,  0.0,  0.3, 0.5]
-    z = [0.0, 0.6, 0.5, 0.3, 0.0]
+    x = [-0.25,  0.25]
+    y = [-0.7,  -0.35,  0.0,  0.6, 0.7]
+    z = [0.0, 0.7, 0.7, 0.4, 0.0]
     p = np.array([zip(repeat(x[0]), y, z),
                   zip(repeat(x[1]), y, z)])
     planes = [Plane(p[0,0], p[0,1], p[0,2]),
@@ -24,7 +24,13 @@ def make_taco():
     return planes
 
 def make_radiator():
-    return np.array([[0.0, 0.0, 0.1]])
+    return np.array([[ 0.1,  0.2, 0.01],
+                     [ 0.1,  0.0, 0.01],
+                     [ 0.1, -0.2, 0.01],
+                     [-0.1,  0.2, 0.01],
+                     [-0.1,  0.0, 0.01],
+                     [-0.1, -0.2, 0.01],
+                     ])
 
 class Line(object):
     """Line from p0 to p1"""
@@ -55,7 +61,7 @@ class Plane(object):
         return str(self)
 
 def plane_line_intersect(p, l):
-    mat = np.array([(l.p0 - l.p1),
+    mat = np.array([l.p0 - l.p1,
                     p.p1 - p.p0,
                     p.p2 - p.p0]).transpose()
     try:
@@ -137,18 +143,21 @@ def calc_earth_vis(p_chandra_eci,
     """
     # Calculate position of earth in ECI and Chandra body coords.  
     # Quat([1,0,0,0]) is a 180 deg roll that puts -Z "up"
-    q_att = Quat(chandra_att) * Quat([1,0,0,0.])
+    q_att = Quat(chandra_att) #  * Quat([1,0,0,0.])
+    
     # For T = attitude transformation matrix then p_body = T^-1 p_eci
     p_earth_body = np.dot(q_att.transform.transpose(), -p_chandra_eci)
+
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
     open_angle = np.arcsin(Rad_Earth / np.sqrt(np.sum(p_earth_body**2)))
     rays, grid_area = sphere_grid(ngrid, open_angle)
+    # or          = np.dot(rays, q_earth.transform.transpose())
     rays_to_earth = np.dot(q_earth.transform, rays.transpose()).transpose()
 
     # points that are visible to ACIS radiator
     illum = 0.
-    visible = np.zeros((len(rays),), int)
+    vis = np.zeros((len(rays),))
 
     for p_radiator in p_radiators:
         for i_ray, ray in enumerate(rays_to_earth + p_radiator):
@@ -160,9 +169,9 @@ def calc_earth_vis(p_chandra_eci,
             else:
                 # calculate projection of radiator normal [0,0,1] onto the vector
                 # from radiator to ray.  
-                # visible[i_ray] += abs(line.u[2])
-                visible[i_ray] += 1
+                vis[i_ray] += abs(line.u[2])
 
-    illum = grid_area * np.sum(visible) / (len(p_radiators) * len(rays))
-    return visible, illum, rays
+    vis /= len(p_radiators)
+    illum = grid_area * np.sum(vis) / len(rays)
+    return vis, illum, rays
 
