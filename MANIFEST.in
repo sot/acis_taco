@@ -1,0 +1,4 @@
+include doc/*.rst
+include doc/*.png
+include doc/*.gif
+include orbitf352123502N001_eph0.fits

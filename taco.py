@@ -1,12 +1,17 @@
-#!/usr/bin/env python
-import numpy as np
-from Quaternion import Quat
+"""
+Define geometry for ACIS radiator and sunshade and perform raytrace
+calculation of Earth illumination on the radiator surface.
+"""
+
 from itertools import repeat
+import numpy as np
 import matplotlib.pyplot as plt
+from Quaternion import Quat
 
 Rad_Earth = 6371e3
 
 def make_taco():
+    """Define geometry for ACIS radiator sun-shade (aka the space taco)."""
     x = [-0.25,  0.25]
     y = [-0.7,  -0.35,  0.0,  0.6, 0.7]
     z = [0.0, 0.7, 0.7, 0.4, 0.0]
@@ -24,6 +29,7 @@ def make_taco():
     return planes
 
 def make_radiator():
+    """Specify points on the ACIS radiator surface."""
     return np.array([[ 0.1,  0.2, 0.01],
                      [ 0.1,  0.0, 0.01],
                      [ 0.1, -0.2, 0.01],
@@ -61,6 +67,10 @@ class Plane(object):
         return str(self)
 
 def plane_line_intersect(p, l):
+    """Determine if the line ``l`` intersects the plane ``p``.
+
+    :rtype: boolean
+    """
     mat = np.array([l.p0 - l.p1,
                     p.p1 - p.p0,
                     p.p2 - p.p0]).transpose()
@@ -74,7 +84,12 @@ def plane_line_intersect(p, l):
     return intersect
 
 def sphere_grid(ngrid, open_angle):
-    """Calculate approximately uniform spherical grid with spacing ``gridsize``"""
+    """Calculate approximately uniform spherical grid of rays containing
+    ``ngrid`` points and extending over the opening angle ``open_angle``
+    (radians).
+
+    :returns: numpy array of unit length rays, grid area (steradians)
+    """
     from math import sin, cos, radians, pi, sqrt
     
     grid_area = 2*pi*(1-cos(open_angle))
@@ -124,14 +139,19 @@ def quat_x_v2(v2):
 
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
-                   ngrid=1000,
-                   planes=make_taco(),
-                   p_radiators=make_radiator(),):
+                   ngrid=100,
+                   planes=None,
+                   p_radiators=None,):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
     The relative visibility is normalized so that 1.0 represents the entire
-    radiator seeing the full Earth at 100000 km.
+    radiator having visibility toward the surface point and being exactly
+    normal toward the surface.
+
+    Total illumination gives the effective solid angle (steradians) of the
+    visible Earth from the radiator perspective.  It is averaged over the
+    different points on the radiator.
 
     :param p_chandra_eci: Chandra orbital position [x, y, z] (meters)
     :param chandra_att: Chandra attitude [ra, dec, roll] (deg)
@@ -139,8 +159,13 @@ def calc_earth_vis(p_chandra_eci,
     :param planes: list of Plane objects defining structure
     :param p_radiators: points on radiator surface
 
-    :returns: relative visibility
+    :returns: relative visibility, total illumination, projected rays
     """
+    if planes is None:
+        planes = make_taco()
+    if p_radiators is None:
+        p_radiators = make_radiator()
+
     # Calculate position of earth in ECI and Chandra body coords.  
     # Quat([1,0,0,0]) is a 180 deg roll that puts -Z "up"
     q_att = Quat(chandra_att) #  * Quat([1,0,0,0.])

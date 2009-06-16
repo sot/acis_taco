@@ -1,0 +1,9 @@
+syntax: glob
+
+out*
+2009*
+doc/_*
+MANIFEST
+dist
+orbit*.fits
+rad_*
