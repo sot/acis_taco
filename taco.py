@@ -2,11 +2,13 @@
 Define geometry for ACIS radiator and sunshade and perform raytrace
 calculation of Earth illumination on the radiator surface.
 """
+import os
 
 from itertools import repeat
 import numpy as np
 import matplotlib.pyplot as plt
 from Quaternion import Quat
+import scipy.weave
 
 Rad_Earth = 6371e3
 
@@ -66,8 +68,8 @@ class Plane(object):
     def __repr__(self):
         return str(self)
 
-def plane_line_intersect(p, l):
-    """Determine if the line ``l`` intersects the plane ``p``.
+def py_plane_line_intersect(p, l):
+    """Determine if the line ``l`` intersects the plane ``p``.  Pure python.
 
     :rtype: boolean
     """
@@ -82,6 +84,19 @@ def plane_line_intersect(p, l):
         intersect = False
 
     return intersect
+
+def plane_line_intersect(p, l):
+    """Determine if the line ``l`` intersects the plane ``p``.  C code via scipy.weave.inline.
+
+    :rtype: int (0 or 1)
+    """
+    j = l.p0
+    k = l.p1
+    A = p.p0
+    B = p.p1
+    C = p.p2
+
+    return scipy.weave.inline(intersect_code, ['A', 'B', 'C', 'j', 'k'])
 
 def sphere_grid(ngrid, open_angle):
     """Calculate approximately uniform spherical grid of rays containing
@@ -167,8 +182,7 @@ def calc_earth_vis(p_chandra_eci,
         p_radiators = make_radiator()
 
     # Calculate position of earth in ECI and Chandra body coords.  
-    # Quat([1,0,0,0]) is a 180 deg roll that puts -Z "up"
-    q_att = Quat(chandra_att) #  * Quat([1,0,0,0.])
+    q_att = Quat(chandra_att) 
     
     # For T = attitude transformation matrix then p_body = T^-1 p_eci
     p_earth_body = np.dot(q_att.transform.transpose(), -p_chandra_eci)
@@ -200,3 +214,72 @@ def calc_earth_vis(p_chandra_eci,
     illum = grid_area * np.sum(vis) / len(rays)
     return vis, illum, rays
 
+intersect_code = """
+double a[3], b[3], c[3], in_det;
+static double R[4][4], Rp[4];
+
+/* a = B - A */
+a[0] = B[0] - A[0]; 
+a[1] = B[1] - A[1]; 
+a[2] = B[2] - A[2];
+/* b = C - B */
+b[0] = C[0] - A[0];
+b[1] = C[1] - A[1];
+b[2] = C[2] - A[2];
+/* c = a &times; b */
+c[0] = a[1] * b[2] - a[2] * b[1];
+c[1] = a[2] * b[0] - a[0] * b[2];
+c[2] = a[0] * b[1] - a[1] * b[0];
+ 
+/* M^(-1) = (1/det(M)) * adj(M) */
+in_det = 1 / (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+R[0][0] = (b[1] * c[2] - b[2] * c[1]) * in_det;
+R[0][1] = (b[2] * c[0] - b[0] * c[2]) * in_det;
+R[0][2] = (b[0] * c[1] - b[1] * c[0]) * in_det;
+R[1][0] = (c[1] * a[2] - c[2] * a[1]) * in_det;
+R[1][1] = (c[2] * a[0] - c[0] * a[2]) * in_det;
+R[1][2] = (c[0] * a[1] - c[1] * a[0]) * in_det;
+R[2][0] = (c[0]) * in_det;
+R[2][1] = (c[1]) * in_det;
+R[2][2] = (c[2]) * in_det;
+
+/* O = M^(-1) * A */
+R[0][3] = -(R[0][0] * A[0] + R[0][1] * A[1] + R[0][2] * A[2]);
+R[1][3] = -(R[1][0] * A[0] + R[1][1] * A[1] + R[1][2] * A[2]);
+R[2][3] = -(R[2][0] * A[0] + R[2][1] * A[1] + R[2][2] * A[2]);
+ 
+/* fill in last row of 4x4 matrix */
+R[3][0] = R[3][1] = R[3][2] = 0;
+R[3][3] = 1;
+
+double J[3], K[3];
+static double i[2];
+J[2] = R[2][0] * j[0] + R[2][1] * j[1] + R[2][2] * j[2] + R[2][3];
+K[2] = R[2][0] * k[0] + R[2][1] * k[1] + R[2][2] * k[2] + R[2][3];
+
+if (J[2] * K[2] >= 0)
+  {
+    return_val = 0;
+  } else
+  {
+    J[0] = R[0][0] * j[0] + R[0][1] * j[1] + R[0][2] * j[2] + R[0][3];
+    K[0] = R[0][0] * k[0] + R[0][1] * k[1] + R[0][2] * k[2] + R[0][3];
+    i[0] = J[0] + J[2] * ((K[0] - J[0]) / (J[2] - K[2]));
+    if (i[0] < 0 || i[0] > 1)
+      {
+        return_val = 0;
+      } else
+      {
+        J[1] = R[1][0] * j[0] + R[1][1] * j[1] + R[1][2] * j[2] + R[1][3];
+        K[1] = R[1][0] * k[0] + R[1][1] * k[1] + R[1][2] * k[2] + R[1][3];
+        i[1] = J[1] + J[2] * ((K[1] - J[1]) / (J[2] - K[2]));
+        if (i[1] < 0 || i[1] > 1 || i[0] + i[1] > 1)
+          {
+            return_val = 0;
+          } else 
+          {
+            return_val = 1;
+          }
+      }
+  }
+"""
