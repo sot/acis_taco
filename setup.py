@@ -1,6 +1,6 @@
 from distutils.core import setup
 setup(name='taco',
-      version='0.1',
+      version='0.1.1',
       description='Calculate Earth illumination on the ACIS radiatiator',
       author='Tom Aldcroft',
       author_email='aldcroft@head.cfa.harvard.edu',
