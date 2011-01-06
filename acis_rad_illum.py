@@ -91,7 +91,7 @@ def calc_vis_values(queue, iproc, times, chandra_ecis, q1s, q2s, q3s, q4s):
         q_att = Quaternion.normalize([q1,q2,q3,q4])
         vis, illum, rays = taco.calc_earth_vis(chandra_eci, q_att, ngrid=opt.ngrid)
         title = '%s alt=%6.0f illum=%6.4f' % (date, alt, illum)
-        outvals.append((t, illum, alt, q1, q2, q3, q4))
+        outvals.append((t, illum['direct'], illum['reflect1'], illum['reflect2'], alt, q1, q2, q3, q4))
         if opt.verbose:
             print title, taco.norm(chandra_eci), q1, q2, q3, q4
         elif iproc == 0:
@@ -177,10 +177,11 @@ def main():
     # Plot illumination versus date
     fig = plt.figure(1, figsize=(6,4))
     plt.clf()
-    illum = np.rec.fromrecords(outvals, names=['time', 'illum', 'alt', 'q1', 'q2', 'q3', 'q4'])
-    ticklocs, fig, ax = plot_cxctime(illum.time, illum.illum, fmt='-b')
-    plot_cxctime(q_times, esa_directs, fmt='-r')
-    plot_cxctime(q_times, esa_refls, fmt='-m')
+    illum = np.rec.fromrecords(outvals, names=['time', 'direct', 'reflect1', 'reflect2', 'alt', 'q1', 'q2', 'q3', 'q4'])
+    ticklocs, fig, ax = plot_cxctime(illum.time, illum.direct, '-b')
+    plot_cxctime(illum.time, illum.reflect1, '-r')
+    plot_cxctime(q_times, esa_directs, '-c')
+    plot_cxctime(q_times, esa_refls, '-m')
     ax.set_title('ACIS radiator illumination')
     ax.set_ylabel('Illumination (steradians)')
     filename = opt.out + '.png'

@@ -14,9 +14,9 @@ Rad_Earth = 6371e3
 #double sheild_y[5] = {-0.689600,   -0.333000,   -0.0635000,     0.553000,     0.689600};
 #double sheild_z[5] = {0.00000,     0.777000,     0.777000,     0.421000,      0.00000};
 
-def make_taco():
+def make_taco(refl=0):
     """Define geometry for ACIS radiator sun-shade (aka the space taco)."""
-    x = [-0.25,  0.25]
+    x = [-0.25 * (refl+1),  0.25 * (refl+1)]
     y = [-0.689,  -0.333,  -0.0635,  0.553, 0.6896]
     z = [0.0, 0.777, 0.777, 0.421, 0.0]
     p = np.array([zip(repeat(x[0]), y, z),
@@ -27,12 +27,10 @@ def make_taco():
               Plane(p[1,0], p[1,1], p[1,2]),
               Plane(p[1,0], p[1,2], p[1,3]),
               Plane(p[1,0], p[1,3], p[1,4]),
-              # Plane(p[0,0], p[0,4], p[1,4]),
-              # Plane(p[0,0], p[1,0], p[1,4]),
               ]
     return planes
 
-def make_radiator():
+def make_radiator(n_radiator_x=2, n_radiator_y=3):
     """Specify points on the ACIS radiator surface.
     Corners of radiator at: (lengths in meters)
     [[-0.209,  0.555, 0.036],
@@ -44,27 +42,10 @@ def make_radiator():
     """
     rad_z = 0.036
     rad_pts = []
-    for x in np.linspace(-0.2, 0.2, 3):
-        for y in np.linspace(-0.389, 0.555, 4):
+    for x in np.linspace(-0.2, 0.2, n_radiator_x):
+        for y in np.linspace(-0.389, 0.555, n_radiator_y):
             rad_pts.append([x, y, rad_z])
     return rad_pts
-
-    return np.array([[ 0.1,  0.40, rad_z],
-                     [ 0.1,  0.08, rad_z],
-                     [ 0.1, -0.23, rad_z],
-                     [-0.1,  0.40, rad_z],
-                     [-0.1,  0.08, rad_z],
-                     [-0.1, -0.23, rad_z],
-                     #[ 0.0,  0.2, rad_z],
-                     # [ 0.0,  0.0, rad_z],
-                     #[ 0.0, -0.2, rad_z],
-                     #[ 0.2,  0.2, rad_z],
-                     #[ 0.2,  0.0, rad_z],
-                     #[ 0.2, -0.2, rad_z],
-                     #[-0.2,  0.2, rad_z],
-                     #[-0.2,  0.0, rad_z],
-                     #[-0.2, -0.2, rad_z],
-                     ])
 
 class Line(object):
     """Line from p0 to p1"""
@@ -178,13 +159,14 @@ def quat_x_v2(v2):
                             axis[2] * sin_a,
                             cos_a])
 
-@line_profiler.LineProfiler()
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
                    ngrid=100,
-                   planes=None,
                    p_radiators=None,
-                   to_earth=False):
+                   to_earth=False,
+                   reflect_atten=0.9,
+                   n_radiator_x=2,
+                   n_radiator_y=3):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
@@ -199,15 +181,15 @@ def calc_earth_vis(p_chandra_eci,
     :param p_chandra_eci: Chandra orbital position [x, y, z] (meters)
     :param chandra_att: Chandra attitude [ra, dec, roll] (deg)
     :param ngrid: number of points on visible Earth to raytrace
-    :param planes: list of Plane objects defining structure
     :param p_radiators: points on radiator surface
 
     :returns: relative visibility, total illumination, projected rays
     """
-    if planes is None:
-        planes = make_taco()
+    direct_planes = make_taco(refl=0)
+    reflect1_planes = make_taco(refl=1)
+    reflect2_planes = make_taco(refl=2)
     if p_radiators is None:
-        p_radiators = make_radiator()
+        p_radiators = make_radiator(n_radiator_x, n_radiator_y)
 
     # Calculate position of earth in ECI and Chandra body coords.  
     q_att = Quat(chandra_att) 
@@ -218,36 +200,78 @@ def calc_earth_vis(p_chandra_eci,
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
     open_angle = np.arcsin(Rad_Earth / np.sqrt(np.sum(p_earth_body**2)))
-    rays, grid_area = sphere_grid(ngrid, open_angle)
+    rays, earth_solid_angle = sphere_grid(ngrid, open_angle)
     # or          = np.dot(rays, q_earth.transform.transpose())
     rays_to_earth = np.dot(q_earth.transform, rays.transpose()).transpose()
 
     # points that are visible to ACIS radiator
-    illum = 0.
-    vis = np.zeros((len(rays),))
-    outs = []
+    direct_vis = np.zeros((len(rays),))
+    reflect1_vis = np.zeros((len(rays),))
+    reflect2_vis = np.zeros((len(rays),))
+    directs = []
+    reflect1s = []
+    reflect2s = []
+    candidate_directs = []
+    candidate_reflect1s = []
+    candidate_reflect2s = []
 
+    # Make all the rays
     for p_radiator in p_radiators:
         for i_ray, ray in enumerate(rays_to_earth + p_radiator):
-            if rays_to_earth[i_ray][2] < 0:
-                outs.append((p_radiator, rays_to_earth[i_ray], False))
+            candidate_directs.append((i_ray, p_radiator, ray, Line(p_radiator, ray)))
+            
+    # These three cases could be refactored into a single loop but for now leave it
+    # unrolled for clarity
+    
+    # Direct
+    for i_ray, p_radiator, ray, line in candidate_directs:
+        for plane in direct_planes:
+            toward_minus_z = rays_to_earth[i_ray][2] < 0
+            if toward_minus_z or plane_line_intersect(plane, line):
+                # Blocked by SIM structure (aka space taco)
+                directs.append((p_radiator, rays_to_earth[i_ray], False))
+                if not toward_minus_z:
+                    candidate_reflect1s.append((i_ray, p_radiator, ray, line))
                 break
-            line = Line(p_radiator, ray)
-            for plane in planes:
-                if plane_line_intersect(plane, line):
-                    # Blocked by SIM structure (aka space taco)
-                    outs.append((p_radiator, rays_to_earth[i_ray], False))
-                    break
-            else:
-                # calculate projection of radiator normal [0,0,1] onto the vector
-                # from radiator to ray.  
-                vis[i_ray] += abs(line.u[2])
-                outs.append((p_radiator, rays_to_earth[i_ray], True))
+        else:
+            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
+            direct_vis[i_ray] += abs(line.u[2])
+            directs.append((p_radiator, rays_to_earth[i_ray], True))
 
-    vis /= len(p_radiators)
-    illum = grid_area * np.sum(vis) / len(rays)
-    # print 'grid_area, np.sum(vis), len(rays)', grid_area, np.sum(vis), len(rays)
-    return vis, illum, (outs if to_earth else rays)
+    # Single reflection
+    for i_ray, p_radiator, ray, line in candidate_reflect1s:
+        for plane in reflect1_planes:
+            if plane_line_intersect(plane, line):
+                reflect1s.append((p_radiator, rays_to_earth[i_ray], False))
+                candidate_reflect2s.append((i_ray, p_radiator, ray, line))
+                break
+        else:
+            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
+            reflect1_vis[i_ray] += abs(line.u[2])
+            reflect1s.append((p_radiator, rays_to_earth[i_ray], True))
+            
+    # Double reflection
+    for i_ray, p_radiator, ray, line in candidate_reflect2s:
+        for plane in reflect2_planes:
+            if plane_line_intersect(plane, line):
+                reflect2s.append((p_radiator, rays_to_earth[i_ray], False))
+                break
+        else:
+            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
+            reflect2_vis[i_ray] += abs(line.u[2])
+            reflect2s.append((p_radiator, rays_to_earth[i_ray], True))
+
+    vis = dict(direct = direct_vis / len(p_radiators),
+               reflect1 = reflect1_vis * reflect_atten / len(p_radiators),
+               reflect2 = reflect2_vis * reflect_atten**2 / len(p_radiators))
+    illum = dict(direct = earth_solid_angle * np.sum(vis['direct']) / len(rays),
+                 reflect1 = earth_solid_angle * np.sum(vis['reflect1']) / len(rays),
+                 reflect2 = earth_solid_angle * np.sum(vis['reflect2']) / len(rays))
+    out_rays = dict(direct = directs,
+                    reflect1 = reflect1s,
+                    reflect2 = reflect2s)
+    print earth_solid_angle, np.sum(direct_vis), len(direct_vis), len(rays)
+    return vis, illum, out_rays
 
 def plot_vis_image(rays, vis, title=''):
     import matplotlib.pyplot as plt
