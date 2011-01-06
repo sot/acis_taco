@@ -6,17 +6,19 @@ import os
 
 from itertools import repeat
 import numpy as np
-import matplotlib.pyplot as plt
 from Quaternion import Quat
 import scipy.weave
 
 Rad_Earth = 6371e3
 
+#double sheild_y[5] = {-0.689600,   -0.333000,   -0.0635000,     0.553000,     0.689600};
+#double sheild_z[5] = {0.00000,     0.777000,     0.777000,     0.421000,      0.00000};
+
 def make_taco():
     """Define geometry for ACIS radiator sun-shade (aka the space taco)."""
     x = [-0.25,  0.25]
-    y = [-0.7,  -0.35,  0.0,  0.6, 0.7]
-    z = [0.0, 0.7, 0.7, 0.4, 0.0]
+    y = [-0.689,  -0.333,  -0.0635,  0.553, 0.6896]
+    z = [0.0, 0.777, 0.777, 0.421, 0.0]
     p = np.array([zip(repeat(x[0]), y, z),
                   zip(repeat(x[1]), y, z)])
     planes = [Plane(p[0,0], p[0,1], p[0,2]),
@@ -25,19 +27,43 @@ def make_taco():
               Plane(p[1,0], p[1,1], p[1,2]),
               Plane(p[1,0], p[1,2], p[1,3]),
               Plane(p[1,0], p[1,3], p[1,4]),
-              Plane(p[0,0], p[0,4], p[1,4]),
-              Plane(p[0,0], p[1,0], p[1,4]),
+              # Plane(p[0,0], p[0,4], p[1,4]),
+              # Plane(p[0,0], p[1,0], p[1,4]),
               ]
     return planes
 
 def make_radiator():
-    """Specify points on the ACIS radiator surface."""
-    return np.array([[ 0.1,  0.2, 0.01],
-                     [ 0.1,  0.0, 0.01],
-                     [ 0.1, -0.2, 0.01],
-                     [-0.1,  0.2, 0.01],
-                     [-0.1,  0.0, 0.01],
-                     [-0.1, -0.2, 0.01],
+    """Specify points on the ACIS radiator surface.
+    Corners of radiator at: (lengths in meters)
+    [[-0.209,  0.555, 0.036],
+     [ 0.209,  0.555, 0.036],
+     [-0.209, -0.389, 0.036],
+     [ 0.209, -0.389, 0.036]]
+     Center-y is 0.083, length is 0.944.
+     Z standoff height is 0.36 
+    """
+    rad_z = 0.036
+    rad_pts = []
+    for x in np.linspace(-0.2, 0.2, 3):
+        for y in np.linspace(-0.389, 0.555, 4):
+            rad_pts.append([x, y, rad_z])
+    return rad_pts
+
+    return np.array([[ 0.1,  0.40, rad_z],
+                     [ 0.1,  0.08, rad_z],
+                     [ 0.1, -0.23, rad_z],
+                     [-0.1,  0.40, rad_z],
+                     [-0.1,  0.08, rad_z],
+                     [-0.1, -0.23, rad_z],
+                     #[ 0.0,  0.2, rad_z],
+                     # [ 0.0,  0.0, rad_z],
+                     #[ 0.0, -0.2, rad_z],
+                     #[ 0.2,  0.2, rad_z],
+                     #[ 0.2,  0.0, rad_z],
+                     #[ 0.2, -0.2, rad_z],
+                     #[-0.2,  0.2, rad_z],
+                     #[-0.2,  0.0, rad_z],
+                     #[-0.2, -0.2, rad_z],
                      ])
 
 class Line(object):
@@ -152,11 +178,13 @@ def quat_x_v2(v2):
                             axis[2] * sin_a,
                             cos_a])
 
+@line_profiler.LineProfiler()
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
                    ngrid=100,
                    planes=None,
-                   p_radiators=None,):
+                   p_radiators=None,
+                   to_earth=False):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
@@ -197,22 +225,45 @@ def calc_earth_vis(p_chandra_eci,
     # points that are visible to ACIS radiator
     illum = 0.
     vis = np.zeros((len(rays),))
+    outs = []
 
     for p_radiator in p_radiators:
         for i_ray, ray in enumerate(rays_to_earth + p_radiator):
+            if rays_to_earth[i_ray][2] < 0:
+                outs.append((p_radiator, rays_to_earth[i_ray], False))
+                break
             line = Line(p_radiator, ray)
             for plane in planes:
                 if plane_line_intersect(plane, line):
                     # Blocked by SIM structure (aka space taco)
+                    outs.append((p_radiator, rays_to_earth[i_ray], False))
                     break
             else:
                 # calculate projection of radiator normal [0,0,1] onto the vector
                 # from radiator to ray.  
                 vis[i_ray] += abs(line.u[2])
+                outs.append((p_radiator, rays_to_earth[i_ray], True))
 
     vis /= len(p_radiators)
     illum = grid_area * np.sum(vis) / len(rays)
-    return vis, illum, rays
+    # print 'grid_area, np.sum(vis), len(rays)', grid_area, np.sum(vis), len(rays)
+    return vis, illum, (outs if to_earth else rays)
+
+def plot_vis_image(rays, vis, title=''):
+    import matplotlib.pyplot as plt
+    plt.figure(1, figsize=(5,5))
+    plt.clf()
+    blocked = vis < 1e-5
+    if len(blocked.nonzero()) > 0:
+        pos = rays[blocked]
+        plt.plot(pos[:,1], pos[:,2], '.k')
+
+    for alpha, ray in zip(vis[~blocked], rays[~blocked]):
+        plt.plot([ray[1]], [ray[2]], '.r', alpha=alpha)
+
+    plt.xlim(-1.1, 1.1)
+    plt.ylim(-1.1, 1.1)
+    plt.title(title)
 
 intersect_code = """
 double a[3], b[3], c[3], in_det;
