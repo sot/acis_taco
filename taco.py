@@ -61,6 +61,7 @@ class Line(object):
         self.u = self.p1 - self.p0
         self.len = np.sqrt(np.sum(self.u**2))  # line length
         self.u /= self.len              # unit vector in line direction
+        self.p1 = self.p0 + self.u * 10.0
 
     def __str__(self):
         return "%s %s" % (str(self.p0), str(self.p1))
@@ -121,6 +122,9 @@ def sphere_grid(ngrid, open_angle):
     from math import sin, cos, radians, pi, sqrt
     
     grid_area = 2*pi*(1-cos(open_angle))
+    if ngrid <= 1:
+        return np.array([[1., 0., 0.]]), grid_area
+
     gridsize = sqrt(grid_area / ngrid)
 
     grid = []
@@ -173,7 +177,7 @@ def calc_earth_vis(p_chandra_eci,
                    reflect_atten=0.9,
                    n_radiator_x=3,
                    n_radiator_y=4,
-                   max_reflect=4):
+                   max_reflect=10):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 

@@ -18,7 +18,7 @@ def make_taco():
 
     return z_edge
 
-def make_radiator(n_radiator_x=3, n_radiator_y=4):
+def make_radiator(n_radiator_x=8, n_radiator_y=8):
     """Specify points on the ACIS radiator surface.
     Corners of radiator at: (lengths in meters)
     [[-0.209,  0.555, 0.036],
@@ -84,11 +84,11 @@ def calc_earth_vis(p_chandra_eci,
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
-    i_rays = numpy.arange(n_rays)
     out_rays = []
 
     for rad_x in RAD_XS:
         for rad_y in RAD_YS:
+            rays_i = numpy.arange(n_rays)
             rays_x = rays_x_all
             rays_y = rays_to_earth[:, 1]
             rays_z = rays_to_earth[:, 2]
@@ -109,12 +109,14 @@ def calc_earth_vis(p_chandra_eci,
 
                 # Calculate the delta-visibility for good rays (cos(incidence_angle) = Z component)
                 d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
+                # vis[refl, rays_i[y_z_ok]] += d_vis
                 illum[refl] += earth_solid_angle * numpy.sum(d_vis) / n_rays
 
                 blocked = ~y_z_ok
                 rays_x = rays_x[blocked]
                 rays_y = rays_y[blocked]
                 rays_z = rays_z[blocked]
+                rays_i = rays_i[blocked]
 
     return vis, illum, out_rays
 
@@ -173,6 +175,9 @@ def sphere_grid(ngrid, open_angle):
     from math import sin, cos, radians, pi, sqrt
     
     grid_area = 2*pi*(1-cos(open_angle))
+    if ngrid <= 1:
+        return numpy.array([[1., 0., 0.]]), grid_area
+    
     gridsize = sqrt(grid_area / ngrid)
 
     grid = []
@@ -237,6 +242,6 @@ N_GRID = 100
 REFLECT_ATTEN=0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
-RAD_XS, RAD_YS = make_radiator(3, 4)
+RAD_XS, RAD_YS = make_radiator(8, 8)
 N_RAD_POINTS = len(RAD_XS) * len(RAD_YS)
 
