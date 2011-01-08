@@ -8,13 +8,6 @@ from itertools import repeat
 from Quaternion import Quat
 import numpy
 
-RAD_EARTH = 6371e3
-RAD_Z_OFF = 36
-TACO_X_OFF = 250
-TACO_Y_OFF = 689
-N_GRID = 100
-REFLECT_ATTEN=0.9
-
 def make_taco():
     """Define geometry for ACIS radiator sun-shade (aka the space taco) in mm."""
     y_pnts = numpy.array([-689.0,  -333,  -63,  553, 689]) + TACO_Y_OFF
@@ -42,11 +35,6 @@ def make_radiator(n_radiator_x=3, n_radiator_y=4):
     #rad_y = numpy.array([0.0]) + TACO_Y_OFF
 
     return rad_x, rad_y
-
-TACO_Z_EDGES = make_taco()
-N_TACO = len(TACO_Z_EDGE)
-RAD_XS, RAD_YS = make_radiator(3, 4)
-N_RAD_POINTS = len(RAD_XS) * len(RAD_YS)
 
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
@@ -85,10 +73,9 @@ def calc_earth_vis(p_chandra_eci,
 
     # Accept only rays with a positive Z component and make sure no X component is < 1e-6
     rays_to_earth = rays_to_earth[rays_to_earth[:, 2] > 0.0, :]
-    rays_x = np.abs(rays_to_earth[:, 0])
+    rays_x = numpy.abs(rays_to_earth[:, 0])
     rays_x[rays_x < 1e-6] = 1e-6
-    rays_y = rays_to_earth[:, 1]
-    rays_z = rays_to_earth[:, 2]
+    rays_x_all = rays_x
 
     # Initialize outputs
     vis = numpy.zeros((max_reflect+1, n_rays))
@@ -97,28 +84,37 @@ def calc_earth_vis(p_chandra_eci,
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
-    i_rays = np.arange(n_rays)
+    i_rays = numpy.arange(n_rays)
     out_rays = []
 
-    for refl in range(max_reflect + 1):
-        taco_x = TACO_X_OFF * (refl + 1)
-        for rad_x in RAD_XS:
-            dx = (taco_x - rad_x) / rays_x
-            for rad_y in RAD_YS:
+    for rad_x in RAD_XS:
+        for rad_y in RAD_YS:
+            rays_x = rays_x_all
+            rays_y = rays_to_earth[:, 1]
+            rays_z = rays_to_earth[:, 2]
+            for refl in range(max_reflect + 1):
+                taco_x = TACO_X_OFF * (refl + 1)
+                dx = (taco_x - rad_x) / rays_x
+
                 # Find rays that intersect shade within Y limits of the shade (0, N_TACO mm)
-                ray_taco_iys = np.array(rad_y + rays_y * dx, dtype=np.int)
+                ray_taco_iys = numpy.array(rad_y + rays_y * dx, dtype=numpy.int)
                 y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
+                y_not_ok = ~y_ok
+                ray_taco_iys[y_not_ok] = 0
 
                 # From those rays find ones below the TACO_Z_EDGES curve
-                ray_taco_zs = rays_z[y_ok] * dx[y_ok]
-                z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys[y_ok]] 
-                i_rays_ok = np.append(i_rays[y_ok][z_ok], i_rays[~y_ok])
+                ray_taco_zs = rays_z * dx
+                z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys]
+                y_z_ok = (y_ok & z_ok) | y_not_ok
 
                 # Calculate the delta-visibility for good rays (cos(incidence_angle) = Z component)
-                d_vis = rays_z[i_rays_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
-                if calc_vis:
-                    vis[refl, i_rays_ok] += d_vis
+                d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
                 illum[refl] += earth_solid_angle * numpy.sum(d_vis) / n_rays
+
+                blocked = ~y_z_ok
+                rays_x = rays_x[blocked]
+                rays_y = rays_y[blocked]
+                rays_z = rays_z[blocked]
 
     return vis, illum, out_rays
 
@@ -232,4 +228,15 @@ def py_plane_line_intersect(p, l):
         intersect = False
 
     return intersect
+
+RAD_EARTH = 6371e3
+RAD_Z_OFF = 36
+TACO_X_OFF = 250
+TACO_Y_OFF = 689
+N_GRID = 100
+REFLECT_ATTEN=0.9
+TACO_Z_EDGES = make_taco()
+N_TACO = len(TACO_Z_EDGES)
+RAD_XS, RAD_YS = make_radiator(3, 4)
+N_RAD_POINTS = len(RAD_XS) * len(RAD_YS)
 
