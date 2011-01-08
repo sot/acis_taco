@@ -38,7 +38,7 @@ def make_radiator(n_radiator_x=8, n_radiator_y=8):
 
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
-                   max_reflect=0,
+                   max_reflect=5,
                    calc_vis=True):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
@@ -86,37 +86,42 @@ def calc_earth_vis(p_chandra_eci,
     # for getting out after N+1 reflections.
     out_rays = []
 
-    for rad_x in RAD_XS:
-        for rad_y in RAD_YS:
-            rays_i = numpy.arange(n_rays)
-            rays_x = rays_x_all
-            rays_y = rays_to_earth[:, 1]
-            rays_z = rays_to_earth[:, 2]
-            for refl in range(max_reflect + 1):
-                taco_x = TACO_X_OFF * (refl + 1)
-                dx = (taco_x - rad_x) / rays_x
+    # Some numpy trickery.  See http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+    rad_x = (RAD_XS + numpy.zeros(len(RAD_YS) * n_rays)[:, numpy.newaxis]).flatten()
+    rad_y = (RAD_YS[:, numpy.newaxis] + numpy.zeros(len(RAD_XS) * n_rays)).flatten()
 
-                # Find rays that intersect shade within Y limits of the shade (0, N_TACO mm)
-                ray_taco_iys = numpy.array(rad_y + rays_y * dx, dtype=numpy.int)
-                y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
-                y_not_ok = ~y_ok
-                ray_taco_iys[y_not_ok] = 0
+    rays_i = numpy.arange(n_rays * N_RAD_POINTS)
+    rays_x = (rays_x_all[:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
+    rays_y = (rays_to_earth[:, 1][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
+    rays_z = (rays_to_earth[:, 2][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
 
-                # From those rays find ones below the TACO_Z_EDGES curve
-                ray_taco_zs = rays_z * dx
-                z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys]
-                y_z_ok = (y_ok & z_ok) | y_not_ok
+    for refl in range(max_reflect + 1):
+        taco_x = TACO_X_OFF * (refl + 1)
+        dx = (taco_x - rad_x) / rays_x
 
-                # Calculate the delta-visibility for good rays (cos(incidence_angle) = Z component)
-                d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
-                # vis[refl, rays_i[y_z_ok]] += d_vis
-                illum[refl] += earth_solid_angle * numpy.sum(d_vis) / n_rays
+        # Find rays that intersect shade within Y limits of the shade (0, N_TACO mm)
+        ray_taco_iys = numpy.array(rad_y + rays_y * dx, dtype=numpy.int)
+        y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
+        y_not_ok = ~y_ok
+        ray_taco_iys[y_not_ok] = 0
 
-                blocked = ~y_z_ok
-                rays_x = rays_x[blocked]
-                rays_y = rays_y[blocked]
-                rays_z = rays_z[blocked]
-                rays_i = rays_i[blocked]
+        # From those rays find ones below the TACO_Z_EDGES curve
+        ray_taco_zs = rays_z * dx
+        z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys]
+        y_z_ok = (y_ok & z_ok) | y_not_ok
+
+        # Calculate the delta-visibility for good rays (cos(incidence_angle) = Z component)
+        d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
+        # vis[refl, rays_i[y_z_ok]] += d_vis
+        illum[refl] += earth_solid_angle * numpy.sum(d_vis) / n_rays
+
+        blocked = ~y_z_ok
+        rays_x = rays_x[blocked]
+        rays_y = rays_y[blocked]
+        rays_z = rays_z[blocked]
+        rays_i = rays_i[blocked]
+        rad_x = rad_x[blocked]
+        rad_y = rad_y[blocked]
 
     return vis, illum, out_rays
 
