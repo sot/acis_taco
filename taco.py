@@ -30,7 +30,7 @@ def make_taco(refl=0):
               ]
     return planes
 
-def make_radiator(n_radiator_x=2, n_radiator_y=3):
+def make_radiator(n_radiator_x=2, n_radiator_y=3, nraw=False):
     """Specify points on the ACIS radiator surface.
     Corners of radiator at: (lengths in meters)
     [[-0.209,  0.555, 0.036],
@@ -41,10 +41,16 @@ def make_radiator(n_radiator_x=2, n_radiator_y=3):
      Z standoff height is 0.36 
     """
     rad_z = 0.036
-    rad_pts = []
-    for x in np.linspace(-0.2, 0.2, n_radiator_x):
-        for y in np.linspace(-0.389, 0.555, n_radiator_y):
-            rad_pts.append([x, y, rad_z])
+    if nraw:
+        rad_pts = [[0.0, 0.555, rad_z],
+                   [0.0, 0.1, rad_z],
+                   [0.0, -0.389, rad_z]]
+        rad_pts = [[0.0, 0.0, rad_z]]
+    else:
+        rad_pts = []
+        for x in np.linspace(-0.2, 0.2, n_radiator_x):
+            for y in np.linspace(-0.389, 0.555, n_radiator_y):
+                rad_pts.append([x, y, rad_z])
     return rad_pts
 
 class Line(object):
@@ -165,8 +171,9 @@ def calc_earth_vis(p_chandra_eci,
                    p_radiators=None,
                    to_earth=False,
                    reflect_atten=0.9,
-                   n_radiator_x=2,
-                   n_radiator_y=3):
+                   n_radiator_x=3,
+                   n_radiator_y=4,
+                   max_reflect=4):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
@@ -182,12 +189,10 @@ def calc_earth_vis(p_chandra_eci,
     :param chandra_att: Chandra attitude [ra, dec, roll] (deg)
     :param ngrid: number of points on visible Earth to raytrace
     :param p_radiators: points on radiator surface
-
+    
     :returns: relative visibility, total illumination, projected rays
     """
-    direct_planes = make_taco(refl=0)
-    reflect1_planes = make_taco(refl=1)
-    reflect2_planes = make_taco(refl=2)
+    planes = [make_taco(refl) for refl in range(max_reflect+1)]
     if p_radiators is None:
         p_radiators = make_radiator(n_radiator_x, n_radiator_y)
 
@@ -195,7 +200,7 @@ def calc_earth_vis(p_chandra_eci,
     q_att = Quat(chandra_att) 
     
     # For T = attitude transformation matrix then p_body = T^-1 p_eci
-    p_earth_body = np.dot(q_att.transform.transpose(), -p_chandra_eci)
+    p_earth_body = np.dot(q_att.transform.transpose(), -np.array(p_chandra_eci))
 
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
@@ -204,73 +209,39 @@ def calc_earth_vis(p_chandra_eci,
     # or          = np.dot(rays, q_earth.transform.transpose())
     rays_to_earth = np.dot(q_earth.transform, rays.transpose()).transpose()
 
-    # points that are visible to ACIS radiator
-    direct_vis = np.zeros((len(rays),))
-    reflect1_vis = np.zeros((len(rays),))
-    reflect2_vis = np.zeros((len(rays),))
-    directs = []
-    reflect1s = []
-    reflect2s = []
-    candidate_directs = []
-    candidate_reflect1s = []
-    candidate_reflect2s = []
+    vis = np.zeros((max_reflect+1, len(rays)))
+    illum = np.zeros(max_reflect+1)
+    out_rays = []
+    candidates = []
+    next_candidates = []
 
     # Make all the rays
     for p_radiator in p_radiators:
         for i_ray, ray in enumerate(rays_to_earth + p_radiator):
-            candidate_directs.append((i_ray, p_radiator, ray, Line(p_radiator, ray)))
+            if rays_to_earth[i_ray][2] > 0:
+                candidates.append((i_ray, p_radiator, ray, Line(p_radiator, ray)))
             
-    # These three cases could be refactored into a single loop but for now leave it
-    # unrolled for clarity
-    
-    # Direct
-    for i_ray, p_radiator, ray, line in candidate_directs:
-        for plane in direct_planes:
-            toward_minus_z = rays_to_earth[i_ray][2] < 0
-            if toward_minus_z or plane_line_intersect(plane, line):
-                # Blocked by SIM structure (aka space taco)
-                directs.append((p_radiator, rays_to_earth[i_ray], False))
-                if not toward_minus_z:
-                    candidate_reflect1s.append((i_ray, p_radiator, ray, line))
-                break
-        else:
-            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
-            direct_vis[i_ray] += abs(line.u[2])
-            directs.append((p_radiator, rays_to_earth[i_ray], True))
+    # Main ray-trace loop.  Calculate ray visibility for an increasing number
+    # of reflections.  Rays that get blocked after N reflections are candidates
+    # for getting out after N+1 reflections.
+    for refl in range(max_reflect+1):
+        for i_ray, p_radiator, ray, line in candidates:
+            for plane in planes[refl]:
+                if line.u[0] * plane.p0[0] > 0 and plane_line_intersect(plane, line):  # Blocked
+                    out_rays.append((p_radiator, rays_to_earth[i_ray], refl, False))
+                    next_candidates.append((i_ray, p_radiator, ray, line))
+                    break
+            else:
+                # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
+                vis[refl, i_ray] += abs(line.u[2])
+                out_rays.append((p_radiator, rays_to_earth[i_ray], refl, True))
 
-    # Single reflection
-    for i_ray, p_radiator, ray, line in candidate_reflect1s:
-        for plane in reflect1_planes:
-            if plane_line_intersect(plane, line):
-                reflect1s.append((p_radiator, rays_to_earth[i_ray], False))
-                candidate_reflect2s.append((i_ray, p_radiator, ray, line))
-                break
-        else:
-            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
-            reflect1_vis[i_ray] += abs(line.u[2])
-            reflect1s.append((p_radiator, rays_to_earth[i_ray], True))
-            
-    # Double reflection
-    for i_ray, p_radiator, ray, line in candidate_reflect2s:
-        for plane in reflect2_planes:
-            if plane_line_intersect(plane, line):
-                reflect2s.append((p_radiator, rays_to_earth[i_ray], False))
-                break
-        else:
-            # Projection of radiator normal [0,0,1] onto vector from radiator to ray.  
-            reflect2_vis[i_ray] += abs(line.u[2])
-            reflect2s.append((p_radiator, rays_to_earth[i_ray], True))
+        vis[refl, :] *= reflect_atten**refl / len(p_radiators)
+        illum[refl] = earth_solid_angle * np.sum(vis[refl, :]) / len(rays)
 
-    vis = dict(direct = direct_vis / len(p_radiators),
-               reflect1 = reflect1_vis * reflect_atten / len(p_radiators),
-               reflect2 = reflect2_vis * reflect_atten**2 / len(p_radiators))
-    illum = dict(direct = earth_solid_angle * np.sum(vis['direct']) / len(rays),
-                 reflect1 = earth_solid_angle * np.sum(vis['reflect1']) / len(rays),
-                 reflect2 = earth_solid_angle * np.sum(vis['reflect2']) / len(rays))
-    out_rays = dict(direct = directs,
-                    reflect1 = reflect1s,
-                    reflect2 = reflect2s)
-    print earth_solid_angle, np.sum(direct_vis), len(direct_vis), len(rays)
+        candidates = next_candidates
+        next_candidates = []
+
     return vis, illum, out_rays
 
 def plot_vis_image(rays, vis, title=''):

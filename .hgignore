@@ -1,7 +1,7 @@
 syntax: glob
 
 out*
-2009*
+20*
 doc/_*
 MANIFEST
 dist

@@ -32,7 +32,7 @@ def get_options():
     parser = OptionParser()
     parser.set_defaults()
     parser.add_option("--tstart",
-                      default='2010:232:19:00:00',
+                      default='2010:225:19:00:00',
                       help="Start time")
     parser.add_option("--tstop",
                       default='2010:237:22:00:00',
@@ -90,8 +90,8 @@ def calc_vis_values(queue, iproc, times, chandra_ecis, q1s, q2s, q3s, q4s):
         date = re.sub(r'\.000$', '', DateTime(t).date)
         q_att = Quaternion.normalize([q1,q2,q3,q4])
         vis, illum, rays = taco.calc_earth_vis(chandra_eci, q_att, ngrid=opt.ngrid)
-        title = '%s alt=%6.0f illum=%6.4f' % (date, alt, illum)
-        outvals.append((t, illum['direct'], illum['reflect1'], illum['reflect2'], alt, q1, q2, q3, q4))
+        title = '%s alt=%6.0f illum=%s' % (date, alt, illum)
+        outvals.append((t, illum[0], sum(illum[1:]), alt, q1, q2, q3, q4))
         if opt.verbose:
             print title, taco.norm(chandra_eci), q1, q2, q3, q4
         elif iproc == 0:
@@ -145,6 +145,7 @@ def main():
     i0s = range(0, len(q1s), len(q1s) // opt.nproc + 1)
     i1s = i0s[1:] + [len(q1s)]
 
+    t0 = time.time()
     # Calculate illumination in a separate process over each sub-interval
     queues = []
     procs = []
@@ -161,27 +162,31 @@ def main():
     for proc, queue in zip(procs, queues):
         outvals.extend(queue.get())
         proc.join()
-
     print
+    print 'calc_esa:', time.time() - t0
 
-    esa_directs = []
-    esa_refls = []
-    for t, q1, q2, q3, q4, x, y, z in zip(
+    t0 = time.time()
+    esa_directs = np.ndarray(len(q_times))
+    esa_refls = np.ndarray(len(q_times))
+    for i, t, q1, q2, q3, q4, x, y, z in zip(itertools.count(),
         q_times, q1s, q2s, q3s, q4s, ephem_x_vals, ephem_y_vals, ephem_z_vals):
         direct, refl, total = Chandra.acis_esa.earth_solid_angle(
             Quaternion.Quat([q1, q2, q3, q4]), np.array([x, y, z]))
 
-        esa_directs.append(direct)
-        esa_refls.append(refl)
+        esa_directs[i] = direct
+        esa_refls[i] = refl
 
+    print 'calc_esa:', time.time() - t0
     # Plot illumination versus date
     fig = plt.figure(1, figsize=(6,4))
     plt.clf()
-    illum = np.rec.fromrecords(outvals, names=['time', 'direct', 'reflect1', 'reflect2', 'alt', 'q1', 'q2', 'q3', 'q4'])
-    ticklocs, fig, ax = plot_cxctime(illum.time, illum.direct, '-b')
-    plot_cxctime(illum.time, illum.reflect1, '-r')
-    plot_cxctime(q_times, esa_directs, '-c')
-    plot_cxctime(q_times, esa_refls, '-m')
+    illum = np.rec.fromrecords(outvals, names=['time', 'direct', 'reflect', 'alt', 'q1', 'q2', 'q3', 'q4'])
+    ticklocs, fig, ax = plot_cxctime(illum.time, illum.direct + illum.reflect, '-b')
+#    plot_cxctime(illum.time, illum.reflect, '-r')
+#    plot_cxctime(illum.time, illum.direct, '-r')
+#    plot_cxctime(q_times, esa_directs, '-c')
+#    plot_cxctime(q_times, esa_refls, '-m')
+    plot_cxctime(q_times, esa_directs + esa_refls, '-r')
     ax.set_title('ACIS radiator illumination')
     ax.set_ylabel('Illumination (steradians)')
     filename = opt.out + '.png'
