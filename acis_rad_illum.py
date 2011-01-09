@@ -23,7 +23,7 @@ if __name__ == '__main__':
 import matplotlib.pyplot as plt
 from Ska.Matplotlib import plot_cxctime
 
-import taco
+import taco2 as taco
 
 import Chandra.acis_esa
 
@@ -50,7 +50,7 @@ def get_options():
                       help="Number of rays to illuminate Earth disk")
     parser.add_option("--nproc",
                       type='int',
-                      default=4,
+                      default=1,
                       help="Number of processors to use")
     parser.add_option("--verbose",
                       action='store_true',
@@ -89,7 +89,7 @@ def calc_vis_values(queue, iproc, times, chandra_ecis, q1s, q2s, q3s, q4s):
         alt = np.sqrt(np.sum(chandra_eci**2))/1e3
         date = re.sub(r'\.000$', '', DateTime(t).date)
         q_att = Quaternion.normalize([q1,q2,q3,q4])
-        vis, illum, rays = taco.calc_earth_vis(chandra_eci, q_att, ngrid=opt.ngrid)
+        vis, illum, rays = taco.calc_earth_vis(chandra_eci, q_att)
         title = '%s alt=%6.0f illum=%s' % (date, alt, illum)
         outvals.append((t, illum[0], sum(illum[1:]), alt, q1, q2, q3, q4))
         if opt.verbose:

@@ -73,24 +73,30 @@ def calc_earth_vis(p_chandra_eci,
 
     # Accept only rays with a positive Z component and make sure no X component is < 1e-6
     rays_to_earth = rays_to_earth[rays_to_earth[:, 2] > 0.0, :]
-    rays_x = numpy.abs(rays_to_earth[:, 0])
-    rays_x[rays_x < 1e-6] = 1e-6
-    rays_x_all = rays_x
+    n_rays_to_earth = len(rays_to_earth)
 
     # Initialize outputs
     vis = numpy.zeros((max_reflect+1, n_rays))
     illum = numpy.zeros(max_reflect+1)
+    out_rays = []
+
+    if len(rays_to_earth) == 0:
+        return vis, illum, out_rays
+
+    rays_x = numpy.abs(rays_to_earth[:, 0])
+    rays_x[rays_x < 1e-6] = 1e-6
+    rays_x_all = rays_x
+
 
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
-    out_rays = []
 
     # Some numpy trickery.  See http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
-    rad_x = (RAD_XS + numpy.zeros(len(RAD_YS) * n_rays)[:, numpy.newaxis]).flatten()
-    rad_y = (RAD_YS[:, numpy.newaxis] + numpy.zeros(len(RAD_XS) * n_rays)).flatten()
+    rad_x = (RAD_XS + numpy.zeros(len(RAD_YS) * n_rays_to_earth)[:, numpy.newaxis]).flatten()
+    rad_y = (RAD_YS[:, numpy.newaxis] + numpy.zeros(len(RAD_XS) * n_rays_to_earth)).flatten()
 
-    rays_i = numpy.arange(n_rays * N_RAD_POINTS)
+    rays_i = numpy.arange(n_rays_to_earth * N_RAD_POINTS)
     rays_x = (rays_x_all[:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
     rays_y = (rays_to_earth[:, 1][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
     rays_z = (rays_to_earth[:, 2][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
@@ -247,6 +253,6 @@ N_GRID = 100
 REFLECT_ATTEN=0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
-RAD_XS, RAD_YS = make_radiator(8, 8)
+RAD_XS, RAD_YS = make_radiator(4, 5)
 N_RAD_POINTS = len(RAD_XS) * len(RAD_YS)
 
