@@ -27,15 +27,15 @@ p_earth_body = numpy.array([-20000e3,   0,   30000e3])
 p_earth_body = numpy.array([-11913349.37481491,   1600513.79810546,   6787847.04879577])
 att = [0, 0, 0]
 
-vis, illum, outs = taco.calc_earth_vis(-p_earth_body, att, ngrid=30, to_earth=True)
+vis, illum, outs = taco.calc_earth_vis(-p_earth_body, att, ngrid=30, to_earth=True, max_reflect=0)
 
 mask_points = (len(outs) // 300) or None
 rx = [out[0][0] for out in outs]
 ry = [out[0][1] for out in outs]
 rz = [out[0][2] for out in outs]
-ru = [out[1][0] * (2 if out[2] else 1) for out in outs]
-rv = [out[1][1] * (2 if out[2] else 1) for out in outs]
-rw = [out[1][2] * (2 if out[2] else 1) for out in outs]
+ru = [out[1][0] * (2 if out[3] else 1) for out in outs]
+rv = [out[1][1] * (2 if out[3] else 1) for out in outs]
+rw = [out[1][2] * (2 if out[3] else 1) for out in outs]
 
 mlab.clf()
 mlab.triangular_mesh(xs, ys, zs, triangles, color=(1, 1, 0), opacity=0.9)
