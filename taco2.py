@@ -38,7 +38,7 @@ def make_radiator(n_radiator_x=8, n_radiator_y=8):
 
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
-                   max_reflect=5,
+                   max_reflect=10,
                    calc_vis=True):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
@@ -66,7 +66,7 @@ def calc_earth_vis(p_chandra_eci,
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
     open_angle = numpy.arcsin(RAD_EARTH / numpy.sqrt(numpy.sum(p_earth_body**2)))
-    rays, earth_solid_angle = sphere_grid(N_GRID, open_angle)
+    rays, earth_solid_angle = sphere_rand(open_angle)
     n_rays = len(rays)
     # or          = numpy.dot(rays, q_earth.transform.transpose())
     rays_to_earth = numpy.dot(q_earth.transform, rays.transpose()).transpose()  # shape (n_rays, 3)
@@ -74,6 +74,9 @@ def calc_earth_vis(p_chandra_eci,
     # Accept only rays with a positive Z component and make sure no X component is < 1e-6
     rays_to_earth = rays_to_earth[rays_to_earth[:, 2] > 0.0, :]
     n_rays_to_earth = len(rays_to_earth)
+    if n_rays_to_earth % 2 == 1:  # Ugh, make sure this list has even length
+        rays_to_earth = rays_to_earth[:-1, :]
+        n_rays_to_earth -= 1
 
     # Initialize outputs
     vis = numpy.zeros((max_reflect+1, n_rays))
@@ -83,25 +86,35 @@ def calc_earth_vis(p_chandra_eci,
     if len(rays_to_earth) == 0:
         return vis, illum, out_rays
 
-    rays_x = numpy.abs(rays_to_earth[:, 0])
-    rays_x[rays_x < 1e-6] = 1e-6
-    rays_x_all = rays_x
-
+    rays_to_earth_x = numpy.abs(rays_to_earth[:, 0])
+    rays_to_earth_x[rays_to_earth_x < 1e-6] = 1e-6
 
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
 
-    # Some numpy trickery.  See http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
-    rad_x = (RAD_XS + numpy.zeros(len(RAD_YS) * n_rays_to_earth)[:, numpy.newaxis]).flatten()
-    rad_y = (RAD_YS[:, numpy.newaxis] + numpy.zeros(len(RAD_XS) * n_rays_to_earth)).flatten()
+    rad_x = numpy.random.uniform(low=0.0, high=200, size=n_rays_to_earth // 2)
+    # rad_x = numpy.random.uniform(low=0.0, high=0.01, size=n_rays_to_earth // 2)
+    rad_y = numpy.random.uniform(low=-389.0, high=555.0, size=n_rays_to_earth // 2) + TACO_Y_OFF
+    rad_x = numpy.append(rad_x, -rad_x)
+    rad_y = numpy.append(rad_y, rad_y)
+    # rad_y = numpy.random.uniform(low=0.0, high=0.01, size=n_rays_to_earth) + TACO_Y_OFF
+    #rad_y1 = numpy.random.uniform(low=-389.0, high=-389.01, size=n_rays_to_earth // 2) + TACO_Y_OFF
+    #rad_y2 = numpy.random.uniform(low=-389.0, high=-389.01, size=n_rays_to_earth // 2) + TACO_Y_OFF
+    #rad_y = numpy.append(rad_y1, rad_y2)
+    rad_z = numpy.zeros(n_rays_to_earth)
+    # rays_i = numpy.random.randint(n_rays_to_earth, size=n_sample)
+    rays_x = rays_to_earth_x
+    rays_y = rays_to_earth[:, 1]
+    rays_z = rays_to_earth[:, 2]
 
-    rays_i = numpy.arange(n_rays_to_earth * N_RAD_POINTS)
-    rays_x = (rays_x_all[:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
-    rays_y = (rays_to_earth[:, 1][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
-    rays_z = (rays_to_earth[:, 2][:, numpy.newaxis] + numpy.zeros(N_RAD_POINTS)).flatten()
+    #import matplotlib.pyplot as plt
+    #plt.figure(4)
+    #plt.plot(rad_y, rays_x, '.')
 
     for refl in range(max_reflect + 1):
+        if len(rays_x) == 0:
+            break
         taco_x = TACO_X_OFF * (refl + 1)
         dx = (taco_x - rad_x) / rays_x
 
@@ -117,7 +130,7 @@ def calc_earth_vis(p_chandra_eci,
         y_z_ok = (y_ok & z_ok) | y_not_ok
 
         # Calculate the delta-visibility for good rays (cos(incidence_angle) = Z component)
-        d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl / N_RAD_POINTS
+        d_vis = rays_z[y_z_ok] * REFLECT_ATTEN**refl
         # vis[refl, rays_i[y_z_ok]] += d_vis
         illum[refl] += earth_solid_angle * numpy.sum(d_vis) / n_rays
 
@@ -125,7 +138,7 @@ def calc_earth_vis(p_chandra_eci,
         rays_x = rays_x[blocked]
         rays_y = rays_y[blocked]
         rays_z = rays_z[blocked]
-        rays_i = rays_i[blocked]
+        # rays_i = rays_i[blocked]
         rad_x = rad_x[blocked]
         rad_y = rad_y[blocked]
 
@@ -176,6 +189,27 @@ def quat_x_v2(v2):
                             axis[2] * sin_a,
                             cos_a])
 
+def sphere_rand(open_angle, min_ngrid=100, max_ngrid=5000):
+    """Calculate approximately uniform spherical grid of rays containing
+    ``ngrid`` points and extending over the opening angle ``open_angle``
+    (radians).
+
+    :returns: numpy array of unit length rays, grid area (steradians)
+    """
+    from math import sin, cos, radians, pi, sqrt
+    
+    xmin = cos(open_angle)
+    grid_area = 2*pi*(1-xmin)
+
+    idx_xmin = numpy.searchsorted(SPHERE_X, xmin)
+    if N_SPHERE - idx_xmin < min_ngrid:
+        idx_xmin = N_SPHERE - min_ngrid
+
+    ngrid = int(min_ngrid + (max_ngrid-min_ngrid) * (1-xmin))
+    idx_sphere = numpy.random.randint(idx_xmin, N_SPHERE, ngrid)
+
+    return SPHERE_XYZ[idx_sphere, :], grid_area
+    
 def sphere_grid(ngrid, open_angle):
     """Calculate approximately uniform spherical grid of rays containing
     ``ngrid`` points and extending over the opening angle ``open_angle``
@@ -213,6 +247,15 @@ def sphere_grid(ngrid, open_angle):
     # (x, y, z) = zip(*grid)  (python magic)
     return numpy.array(grid), grid_area
 
+def random_hemisphere(nsample):
+    x = numpy.random.uniform(low=0.5, high=1.0, size=nsample)
+    x.sort()                    # x is not random
+    t = 2*numpy.pi * numpy.random.random(nsample)
+    r = numpy.sqrt(1-x**2)
+    z = r * numpy.cos(t)
+    y = r * numpy.sin(t)
+    return numpy.array([x, y, z]).transpose()
+
 class Line(object):
     """Line from p0 to p1"""
     def __init__(self, p0, p1):
@@ -249,10 +292,11 @@ RAD_EARTH = 6371e3
 RAD_Z_OFF = 36
 TACO_X_OFF = 250
 TACO_Y_OFF = 689
-N_GRID = 100
+
 REFLECT_ATTEN=0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
-RAD_XS, RAD_YS = make_radiator(4, 5)
-N_RAD_POINTS = len(RAD_XS) * len(RAD_YS)
 
+N_SPHERE = 1e6
+SPHERE_XYZ = random_hemisphere(N_SPHERE)
+SPHERE_X = SPHERE_XYZ[:, 0].copy()
