@@ -18,24 +18,6 @@ def make_taco():
 
     return z_edge
 
-def make_radiator(n_radiator_x=8, n_radiator_y=8):
-    """Specify points on the ACIS radiator surface.
-    Corners of radiator at: (lengths in meters)
-    [[-0.209,  0.555, 0.036],
-     [ 0.209,  0.555, 0.036],
-     [-0.209, -0.389, 0.036],
-     [ 0.209, -0.389, 0.036]]
-     Center-y is 0.083, length is 0.944.
-     Z standoff height is 0.36 
-    """
-    rad_x = numpy.linspace(-200, 200, n_radiator_x)
-    rad_y = numpy.linspace(-389, 555, n_radiator_y) + TACO_Y_OFF
-
-    #rad_x = numpy.array([0.0])
-    #rad_y = numpy.array([0.0]) + TACO_Y_OFF
-
-    return rad_x, rad_y
-
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
                    max_reflect=10,
@@ -94,23 +76,13 @@ def calc_earth_vis(p_chandra_eci,
     # for getting out after N+1 reflections.
 
     rad_x = numpy.random.uniform(low=0.0, high=200, size=n_rays_to_earth // 2)
-    # rad_x = numpy.random.uniform(low=0.0, high=0.01, size=n_rays_to_earth // 2)
     rad_y = numpy.random.uniform(low=-389.0, high=555.0, size=n_rays_to_earth // 2) + TACO_Y_OFF
     rad_x = numpy.append(rad_x, -rad_x)
     rad_y = numpy.append(rad_y, rad_y)
-    # rad_y = numpy.random.uniform(low=0.0, high=0.01, size=n_rays_to_earth) + TACO_Y_OFF
-    #rad_y1 = numpy.random.uniform(low=-389.0, high=-389.01, size=n_rays_to_earth // 2) + TACO_Y_OFF
-    #rad_y2 = numpy.random.uniform(low=-389.0, high=-389.01, size=n_rays_to_earth // 2) + TACO_Y_OFF
-    #rad_y = numpy.append(rad_y1, rad_y2)
     rad_z = numpy.zeros(n_rays_to_earth)
-    # rays_i = numpy.random.randint(n_rays_to_earth, size=n_sample)
     rays_x = rays_to_earth_x
     rays_y = rays_to_earth[:, 1]
     rays_z = rays_to_earth[:, 2]
-
-    #import matplotlib.pyplot as plt
-    #plt.figure(4)
-    #plt.plot(rad_y, rays_x, '.')
 
     for refl in range(max_reflect + 1):
         if len(rays_x) == 0:
@@ -210,43 +182,6 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=5000):
 
     return SPHERE_XYZ[idx_sphere, :], grid_area
     
-def sphere_grid(ngrid, open_angle):
-    """Calculate approximately uniform spherical grid of rays containing
-    ``ngrid`` points and extending over the opening angle ``open_angle``
-    (radians).
-
-    :returns: numpy array of unit length rays, grid area (steradians)
-    """
-    from math import sin, cos, radians, pi, sqrt
-    
-    grid_area = 2*pi*(1-cos(open_angle))
-    if ngrid <= 1:
-        return numpy.array([[1., 0., 0.]]), grid_area
-    
-    gridsize = sqrt(grid_area / ngrid)
-
-    grid = []
-    theta0 = pi/2-open_angle
-    n_d = int(round(open_angle / gridsize))
-    d_d = open_angle / n_d
-
-    for i_d in range(0, n_d+1):
-        dec = i_d * d_d + pi/2 - open_angle
-        if abs(i_d) != n_d:
-            n_r = int(round( 2*pi * cos(dec) / d_d))
-            d_r = 2*pi / n_r
-        else:
-            n_r = 1
-            d_r = 1
-        for i_r in range(0, n_r):
-            ra = i_r * d_r
-            # This has x <=> z (switched) from normal formulation to make the
-            # grid centered about the x-axis
-            grid.append((sin(dec), sin(ra) * cos(dec), cos(ra) * cos(dec)))
-
-    # (x, y, z) = zip(*grid)  (python magic)
-    return numpy.array(grid), grid_area
-
 def random_hemisphere(nsample):
     x = numpy.random.uniform(low=0.5, high=1.0, size=nsample)
     x.sort()                    # x is not random
@@ -255,38 +190,6 @@ def random_hemisphere(nsample):
     z = r * numpy.cos(t)
     y = r * numpy.sin(t)
     return numpy.array([x, y, z]).transpose()
-
-class Line(object):
-    """Line from p0 to p1"""
-    def __init__(self, p0, p1):
-        self.p0 = numpy.array(p0)
-        self.p1 = numpy.array(p1)
-        self.u = self.p1 - self.p0
-        self.len = numpy.sqrt(numpy.sum(self.u**2))  # line length
-        self.u /= self.len              # unit vector in line direction
-
-    def __str__(self):
-        return "%s %s" % (str(self.p0), str(self.p1))
-
-    def __repr__(self):
-        return str(self)
-
-def py_plane_line_intersect(p, l):
-    """Determine if the line ``l`` intersects the plane ``p``.  Pure python.
-
-    :rtype: boolean
-    """
-    mat = numpy.array([l.p0 - l.p1,
-                    p.p1 - p.p0,
-                    p.p2 - p.p0]).transpose()
-    try:
-        t, u, v = numpy.dot(numpy.linalg.inv(mat), l.p0 - p.p0)
-        intersect = 0 <= u <= 1 and 0 <= v <= 1 and u + v <= 1 and t > 0
-    except numpy.linalg.LinAlgError, msg:
-        # This presumably occurred because is parallel to plane
-        intersect = False
-
-    return intersect
 
 RAD_EARTH = 6371e3
 RAD_Z_OFF = 36
