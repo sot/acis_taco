@@ -6,6 +6,7 @@ from Quaternion import Quat
 p_earth_body = np.array([-11913349.37481491,   1600513.79810546,   6787847.04879577])
 orbit_xyz = -p_earth_body
 orbit_xyz = np.array([0., 0., -100000e3])
+orbit_xyz = np.array([0., 0., -10000e3])
 
 illums = []
 pitchs = numpy.linspace(0, 90.0, 30)
@@ -14,7 +15,7 @@ esa_refls = []
 
 for pitch in pitchs:
     print pitch
-    att = [0, pitch, 0]
+    att = [0, 0, pitch]
     vis, illum, rays = taco.calc_earth_vis(orbit_xyz, att, ngrid=100,
                                            n_radiator_x=5, n_radiator_y=8,
                                            reflect_atten=0.9,

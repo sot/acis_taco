@@ -45,12 +45,19 @@ def calc_earth_vis(p_chandra_eci,
     # For T = attitude transformation matrix then p_body = T^-1 p_eci
     p_earth_body = numpy.dot(q_att.transform.transpose(), -numpy.array(p_chandra_eci))
 
+    illum = numpy.zeros(max_reflect+1)
+    out_rays = []
+
+    # If Earth disk is entirely below the "horizon" of the ACIS radiator then illum=0
+    if p_earth_body[2] < -RAD_EARTH:
+        return [], illum, out_rays
+
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
     open_angle = numpy.arcsin(RAD_EARTH / numpy.sqrt(numpy.sum(p_earth_body**2)))
+    
     rays, earth_solid_angle = sphere_rand(open_angle)
     n_rays = len(rays)
-    # or          = numpy.dot(rays, q_earth.transform.transpose())
     rays_to_earth = numpy.dot(q_earth.transform, rays.transpose()).transpose()  # shape (n_rays, 3)
 
     # Accept only rays with a positive Z component and make sure no X component is < 1e-6
@@ -60,11 +67,7 @@ def calc_earth_vis(p_chandra_eci,
         rays_to_earth = rays_to_earth[:-1, :]
         n_rays_to_earth -= 1
 
-    # Initialize outputs
     vis = numpy.zeros((max_reflect+1, n_rays))
-    illum = numpy.zeros(max_reflect+1)
-    out_rays = []
-
     if len(rays_to_earth) == 0:
         return vis, illum, out_rays
 
@@ -161,7 +164,7 @@ def quat_x_v2(v2):
                             axis[2] * sin_a,
                             cos_a])
 
-def sphere_rand(open_angle, min_ngrid=100, max_ngrid=5000):
+def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     """Calculate approximately uniform spherical grid of rays containing
     ``ngrid`` points and extending over the opening angle ``open_angle``
     (radians).
@@ -183,7 +186,7 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=5000):
     return SPHERE_XYZ[idx_sphere, :], grid_area
     
 def random_hemisphere(nsample):
-    x = numpy.random.uniform(low=0.5, high=1.0, size=nsample)
+    x = numpy.random.uniform(low=0.3, high=1.0, size=nsample)
     x.sort()                    # x is not random
     t = 2*numpy.pi * numpy.random.random(nsample)
     r = numpy.sqrt(1-x**2)
@@ -200,6 +203,6 @@ REFLECT_ATTEN=0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
 
-N_SPHERE = 1e6
+N_SPHERE = 1.5e6
 SPHERE_XYZ = random_hemisphere(N_SPHERE)
 SPHERE_X = SPHERE_XYZ[:, 0].copy()

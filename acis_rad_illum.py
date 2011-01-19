@@ -42,7 +42,7 @@ def get_options():
                       help="Output root name")
     parser.add_option("--sample",
                       type='int',
-                      default=600,
+                      default=60,
                       help="Sample")
     parser.add_option("--ngrid",
                       type='int',
