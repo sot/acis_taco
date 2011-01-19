@@ -164,6 +164,43 @@ def quat_x_v2(v2):
                             axis[2] * sin_a,
                             cos_a])
 
+def sphere_grid(ngrid, open_angle):
+    """Calculate approximately uniform spherical grid of rays containing
+    ``ngrid`` points and extending over the opening angle ``open_angle``
+    (radians).
+
+    :returns: numpy array of unit length rays, grid area (steradians)
+    """
+    from math import sin, cos, radians, pi, sqrt
+    
+    grid_area = 2*pi*(1-cos(open_angle))
+    if ngrid <= 1:
+        return np.array([[1., 0., 0.]]), grid_area
+
+    gridsize = sqrt(grid_area / ngrid)
+
+    grid = []
+    theta0 = pi/2-open_angle
+    n_d = int(round(open_angle / gridsize))
+    d_d = open_angle / n_d
+
+    for i_d in range(0, n_d+1):
+        dec = i_d * d_d + pi/2 - open_angle
+        if abs(i_d) != n_d:
+            n_r = int(round( 2*pi * cos(dec) / d_d))
+            d_r = 2*pi / n_r
+        else:
+            n_r = 1
+            d_r = 1
+        for i_r in range(0, n_r):
+            ra = i_r * d_r
+            # This has x <=> z (switched) from normal formulation to make the
+            # grid centered about the x-axis
+            grid.append((sin(dec), sin(ra) * cos(dec), cos(ra) * cos(dec)))
+
+    # (x, y, z) = zip(*grid)  (python magic)
+    return np.array(grid), grid_area
+
 def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     """Calculate approximately uniform spherical grid of rays containing
     ``ngrid`` points and extending over the opening angle ``open_angle``
