@@ -175,7 +175,7 @@ def sphere_grid(ngrid, open_angle):
     
     grid_area = 2*pi*(1-cos(open_angle))
     if ngrid <= 1:
-        return np.array([[1., 0., 0.]]), grid_area
+        return numpy.array([[1., 0., 0.]]), grid_area
 
     gridsize = sqrt(grid_area / ngrid)
 
@@ -199,7 +199,7 @@ def sphere_grid(ngrid, open_angle):
             grid.append((sin(dec), sin(ra) * cos(dec), cos(ra) * cos(dec)))
 
     # (x, y, z) = zip(*grid)  (python magic)
-    return np.array(grid), grid_area
+    return numpy.array(grid), grid_area
 
 def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     """Calculate approximately uniform spherical grid of rays containing
