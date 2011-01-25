@@ -20,8 +20,7 @@ def make_taco():
 
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
-                   max_reflect=10,
-                   calc_vis=True):
+                   max_reflect=10):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
 
