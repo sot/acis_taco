@@ -14,9 +14,13 @@ import sys
 
 def destroy(e): sys.exit()
 
-def update_image(val):
-    center = int(date_scale.get())
-    wid = int(width_scale.get() * 6)
+#def update_alpha(*args):
+#    image.set_alpha(alpha_slider.value.get())
+#    canvas.draw()
+
+def update_image(*args):
+    center = int(date_slider.value.get())
+    wid = int(width_slider.value.get() * 6)
     i0 = center - wid
     i1 = center + wid
     if i0 < 0:
@@ -24,9 +28,13 @@ def update_image(val):
     if i1 >= len(imgs):
         i1 = len(imgs)-1
     i_center = (i0 + i1) // 2
-    date_label_var.set(DateTime(times[i_center]).date[:-4])
-    width_label_var.set("%.1f" % width_scale.get())
-    image.set_data(imgs[i0:i1+1].sum(0))
+    img = imgs[i0:i1+1].sum(0)
+    if 1:
+        img_rgba = matplotlib.cm.jet(img / 7.2)
+        img_rgba[:, :, 3] = alpha_slider.value.get()
+        image.set_data(img_rgba)
+    else:
+        image.set_data(img)
     canvas.draw()
 
 def motion(event):
@@ -35,26 +43,40 @@ def motion(event):
     #print event.name, event.xdata, event.ydata, event.inaxes
     
 class Slider(object):
-    def __init__(self, minval, maxval, command=None, side=Tk.TOP, anchor='w', **kwargs):
+    def __init__(self, minval, maxval, label_command=None, side=Tk.TOP, anchor='w', **kwargs):
+        self.label_command = label_command
+        
         self.frame = Tk.Frame()
         self.frame.pack(side=side, anchor=anchor)
 
-        self.scale = Tk.Scale(self.frame, from_=minval, to=maxval,
-                              variable=(minval + maxval) / 2.0,
+        self.value = Tk.DoubleVar()
+        self.value.set((minval + maxval) / 2.0)
+        self.scale = Tk.Scale(self.frame,
+                              from_=minval, to=maxval,
+                              variable=self.value,
                               orient=Tk.HORIZONTAL,
-                              command=self.update,
+                              command=self.value_changed,
                               showvalue=False,
                               **kwargs)
         self.scale.pack(side=Tk.LEFT, anchor='w')
-        self.scale.set(50)
 
-        self.label_var = Tk.StringVar()
-        self.label = Tk.Label(self.frame, textvariable=self.label_var)
-        self.label.pack(side=Tk.LEFT)
+        if label_command is not None:
+            self.label_var = Tk.StringVar()
+            self.label = Tk.Label(self.frame, textvariable=self.label_var)
+            self.label.pack(side=Tk.LEFT)
 
-    def update(self, scaleval):
-        pass
+    def value_changed(self, scaleval):
+        if self.label_command is not None:
+            self.label_var.set(self.label_command(self.value.get()))
         
+def get_date(idx_img):
+    idx_img = int(idx_img)
+    if idx_img < 0:
+        idx_img = 0
+    if idx_img >= len(times):
+        idx_img = len(times) - 1
+    return DateTime(times[idx_img]).date[:-4]
+
 # Load data
 dat = pickle.load(open('cube.pkl'))
 imgs = dat['illums']
@@ -89,35 +111,20 @@ toolbar.update()
 canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
 
 # Date slider control
-date_slider_frame = Tk.Frame()
-date_slider_frame.pack(side=Tk.TOP, anchor='w')
-
-date_scale = Tk.Scale(date_slider_frame, from_=0, to=len(imgs), variable=50.,
-                      orient=Tk.HORIZONTAL, command=update_image, showvalue=False,
-                      length=300)
-date_scale.pack(side=Tk.LEFT, anchor='w')
-date_scale.set(50)
-
-date_label_var = Tk.StringVar()
-date_label = Tk.Label(date_slider_frame, textvariable=date_label_var)
-date_label.pack(side=Tk.LEFT)
+date_slider = Slider(minval=0, maxval=len(imgs), label_command=get_date, length=300)
+date_slider.value.trace('w', update_image)
 
 # Width slider control
-width_slider_frame = Tk.Frame()
-width_slider_frame.pack(side=Tk.TOP, anchor='w')
+width_slider = Slider(minval=0, maxval=14.0, label_command=lambda x: '{0:.1f}'.format(x))
+width_slider.value.trace('w', update_image)
 
-width_scale = Tk.Scale(width_slider_frame, from_=0, to=14.0, resolution=0.1, variable=5.,
-                      orient=Tk.HORIZONTAL, command=update_image, showvalue=False)
-width_scale.pack(side=Tk.LEFT, anchor='w')
-width_scale.set(3.0)
-
-width_label_var = Tk.StringVar()
-width_label_var.set('hello world')
-width_label = Tk.Label(width_slider_frame, textvariable=width_label_var)
-width_label.pack(side=Tk.LEFT)
+# Alpha slider control
+alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01,
+                      label_command=lambda x: '{0:.2f}'.format(x))
+alpha_slider.value.trace('w', update_image)
 
 maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
-image = ax.imshow(imgs[50], interpolation='bilinear', animated=True, vmin=0, vmax=maxscale, alpha=1.0)
+image = ax.imshow(imgs[50], interpolation='nearest', animated=True, vmin=0, vmax=maxscale, alpha=1.0)
 image.set_cmap('jet')
 ax.get_xaxis().set_ticklabels([])
 ax.get_yaxis().set_ticklabels([])
