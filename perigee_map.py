@@ -116,7 +116,7 @@ def calc_perigee_map(start='2010:116:00:00:00', stop='2010:118:00:00:00', radzon
         for iy in range(ngrid):
             for ix in range(ngrid):
                 i_vec = iy * ngrid + ix
-                if 10 < antisun_pitches[i_vec] < 135:
+                if antisun_pitches[i_vec] < 135:
                     ra, dec = ras[i_vec], decs[i_vec]
                     roll = Ska.Sun.nominal_roll(ra, dec, time_perigee)
                     _, att_illums, _ = taco2.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)

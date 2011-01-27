@@ -88,9 +88,9 @@ root.wm_title("ESA viewer")
 root.bind("<Destroy>", destroy)
 
 fig = Figure(figsize=(8,7), dpi=100)
-ax = fig.add_subplot(1, 1, 1)
-ax.set_xticklabels([])
-ax.set_yticklabels([])
+ax = fig.add_subplot(1, 1, 1, axis_bgcolor='k')
+#ax.set_xticklabels([])
+#ax.set_yticklabels([])
 
 menu_frame = Tk.Frame()
 menu_frame.pack(side=Tk.TOP, anchor='w')
@@ -121,17 +121,20 @@ width_slider.value.trace('w', update_image)
 # Alpha slider control
 alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01,
                       label_command=lambda x: '{0:.2f}'.format(x))
+alpha_slider.value.set(1.0)
 alpha_slider.value.trace('w', update_image)
 
 maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
-image = ax.imshow(imgs[50], interpolation='nearest', animated=True, vmin=0, vmax=maxscale, alpha=1.0)
+image = ax.imshow(imgs[50], interpolation='nearest', animated=True, vmin=0,
+                  vmax=maxscale, alpha=1.0, origin='lower')
 image.set_cmap('jet')
-ax.get_xaxis().set_ticklabels([])
-ax.get_yaxis().set_ticklabels([])
+#ax.get_xaxis().set_ticklabels([])
+#ax.get_yaxis().set_ticklabels([])
 divider = make_axes_locatable(ax)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 fig.colorbar(image, cax=cax)
-
+ax.set_autoscale_on(False)
+ax.plot([0,50], [0,50], '-g')
 update_image(None)
 Tk.mainloop()
 
