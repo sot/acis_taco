@@ -16,6 +16,7 @@ import Quaternion
 import Ska.engarchive.fetch_sci as fetch
 import Ska.Sun
 import Ska.quatutil
+from antisun import AntiSun
 
 import taco2
 import cPickle as pickle
@@ -63,9 +64,19 @@ def calc_illums(queue, chandra_ecis, att):
     queue.put(illums)
 
 
+def get_antisun_grid(ngrid=10):
+    xy0 = ngrid / 2.0
+    max_pitch = 135.0
+    antisun = AntiSun(xy0, xy0, max_pitch * 2 / ngrid)
+    x = np.arange(ngrid)[np.newaxis, :] + np.zeros((ngrid, ngrid))
+    x = x.flatten()
+    y = np.arange(ngrid)[:, np.newaxis] + np.zeros((ngrid, ngrid))
+    y = y.flatten()
+    return antisun, x, y
+
 def get_att_vecs(ngrid=100):
     # Pitch angle from anti-sun direction
-    max_pitch = 135.0  
+    max_pitch = 135.0
     x = np.linspace(-max_pitch, max_pitch, ngrid)[np.newaxis, :] + np.zeros((ngrid, ngrid))
     x = x.flatten()
     y = np.linspace(-max_pitch, max_pitch, ngrid)[:, np.newaxis] + np.zeros((ngrid, ngrid))
@@ -81,37 +92,44 @@ def get_att_vecs(ngrid=100):
 def calc_perigee_map(start='2010:116:00:00:00', stop='2010:118:00:00:00', radzone_dur=12, ngrid=100):
     # Get orbital ephemeris in requested time range
     print ('Fetching ephemeris')
-    ephem_x = fetch.MSID('orbitephem1_x', start, stop)
-    ephem_y = fetch.MSID('orbitephem1_y', start, stop)
-    ephem_z = fetch.MSID('orbitephem1_z', start, stop)
-    ephem_times = ephem_x.times.copy()
-    ephem_xyzs = np.array([ephem_x.vals, ephem_y.vals, ephem_z.vals])
+    objs = ('orbit', 'lunar', 'solar')
+    axes = ('x', 'y', 'z')
+    msids = ['{0}ephem1_{1}'.format(obj, axis)
+             for obj in objs
+             for axis in axes]
+    ephems = fetch.MSIDset(msids, start, stop)
+    times = ephems[msids[0]].times.copy()
+    if any(len(ephems[msid].vals) != len(ephems[msids[0]].vals) for msid in msids):
+        raise ValueError('Unexpected mismatch in ephemeris telemetry sampling')
+
+    ephem_xyzs = {}
+    for obj in ('orbit', 'lunar', 'solar'):
+        msids = ('{0}ephem1_{1}'.format(obj, axis) for axis in axes)
+        ephem_xyzs[obj] = np.array([ephems[msid].vals for msid in msids])
 
     # Find index and time of perigee, then take only times within "radzone" interval
-    ephem_r = np.sqrt((ephem_xyzs**2).sum(0))
-    i_perigee = np.argmin(ephem_r)
-    time_perigee = ephem_times[i_perigee]
-    ok = abs(ephem_times - time_perigee) < radzone_dur * 3600.0 / 2
-    ephem_xyzs = ephem_xyzs[:, ok]
-    ephem_times = ephem_times[ok]
-    n_ephem = len(ephem_times)
+    orbit_rs = np.sqrt((ephem_xyzs['orbit']**2).sum(0))
+    i_perigee = np.argmin(orbit_rs)
+    time_perigee = times[i_perigee]
+    ok = abs(times - time_perigee) < radzone_dur * 3600.0 / 2
+    times = times[ok]
+    for obj in objs:
+        ephem_xyzs[obj] = ephem_xyzs[obj][:, ok]
+    n_ephem = len(times)
     
-    # Calculate a grid of attitude vectors centered on the anti-sun line and extending
-    # from sun-pitch=180 (center) to sun-pitch=45 (edge).  
-    thetas, phis, att_vecs, xs, ys = get_att_vecs(ngrid)
-    n_plot_vecs = att_vecs.shape[1]
-    antisun_pitches = np.degrees(thetas)
-
-    #  Initially the attitude vectors are centered on (1,0,0).  Rotate so they are
-    # centered on the antisun attitude.  
+    # Get the sun position at perigee
     sun_ra, sun_dec = Ska.Sun.position(time_perigee)
     sun_eci = Ska.quatutil.radec2eci(sun_ra, sun_dec)
-    q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
-    att_vecs = np.dot(q_x_to_antisun.transform, att_vecs)
+
+    # Calculate a grid of attitude vectors centered on the anti-sun line and extending
+    # from sun-pitch=180 (center) to sun-pitch=45 (edge).  
+    antisun, xs, ys = get_antisun_grid(ngrid)
+    antisun_pitches, phis = antisun.img2polar(xs, ys)
+    att_vecs = antisun.img2eci(xs, ys, sun_eci)
     ras, decs = Ska.quatutil.eci2radec(att_vecs)
     
     illums = np.zeros((n_ephem, ngrid, ngrid), dtype=np.float32)
-    for i_ephem, ephem_xyz in enumerate(ephem_xyzs.transpose()):
+    for i_ephem, ephem_xyz in enumerate(ephem_xyzs['orbit'].transpose()):
         print i_ephem, n_ephem, ephem_xyz
         for iy in range(ngrid):
             for ix in range(ngrid):
@@ -127,19 +145,21 @@ def calc_perigee_map(start='2010:116:00:00:00', stop='2010:118:00:00:00', radzon
         
     # debug_here()
     return dict(illums=illums,
-                times=ephem_times,
+                times=times,
+                antisun=antisun,
                 xs=xs,
                 ys=ys,
-                thetas=thetas,
-                phis=phis,
+                antisun_pitches=antisun_pitches,
                 ras=ras,
                 decs=decs,
                 ephem_xyzs=ephem_xyzs,
-                ephem_r=ephem_r)
+                orbit_rs=orbit_rs,
+                sun_eci=sun_eci,
+                )
 
 if 0 and __name__ == '__main__':
     opt, args = get_options()
     xs, ys, times, illums = calc_perigee_map(opt.start, opt.stop, opt.radzone_dur)
     
-out = calc_perigee_map(ngrid=50,radzone_dur=12)
-pickle.dump('cube.pkl')
+out = calc_perigee_map(ngrid=50,radzone_dur=4)
+pickle.dump(out, open('cube3.pkl', 'w'))
