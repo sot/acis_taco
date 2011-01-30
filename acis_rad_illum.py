@@ -109,9 +109,9 @@ def main():
 
     # Get orbital ephemeris in requested time range
     print ('Fetching ephemeris')
-    ephem_x = fetch.MSID('orbitephem1_x', opt.tstart, opt.tstop)
-    ephem_y = fetch.MSID('orbitephem1_y', opt.tstart, opt.tstop)
-    ephem_z = fetch.MSID('orbitephem1_z', opt.tstart, opt.tstop)
+    ephem_x = fetch.MSID('orbitephem0_x', opt.tstart, opt.tstop)
+    ephem_y = fetch.MSID('orbitephem0_y', opt.tstart, opt.tstop)
+    ephem_z = fetch.MSID('orbitephem0_z', opt.tstart, opt.tstop)
     ephem_times = ephem_x.times.copy()
 
     # Get spacecraft attitude in requested time range at the same sampling as ephemeris

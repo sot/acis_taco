@@ -13,6 +13,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import Ska.quatutil
 from Chandra.Time import DateTime
 from Ska.Matplotlib import plot_cxctime, cxctime2plotdate
+import Ska.Sun
+from Quaternion import Quat
 
 def destroy(e): sys.exit()
 
@@ -40,6 +42,55 @@ def update_image(*args):
     ax.set_title(get_date(i_center))
     canvas.draw()
 
+def draw_pitch_contours(ax):
+    phi = 0
+    xc, yc = antisun.phys2img(0, 0)
+    for pitch in (170, 156, 152, 135, 120, 105, 90, 75, 60, 45):
+        x, y = antisun.phys2img(180-pitch, 0)
+        rad = np.sqrt((x - xc)**2 + (y - yc)**2)
+        patch = matplotlib.patches.Circle((xc, yc), rad, edgecolor='w', fill=False, linewidth=0.5)
+        ax.add_patch(patch)
+
+class TacoView(object):
+    def __init__(self, fig):
+        TACO_X_OFF = 250
+        TACO_Y_OFF = 689
+        RAD_Z_OFF = 36
+
+        y_pnts = numpy.array([-689.0,  -333,  -63,  553, 689])
+        z_pnts = numpy.array([0.0, 777, 777, 421, 0]) - RAD_Z_OFF
+
+        y = np.array([y_pnts, y_pnts])
+        z = np.array([np.zeros_like(z_pnts) - RAD_Z_OFF, z_pnts])
+        x = np.zeros_like(z)
+
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.plot_surface(x - 250, y, z, shade=True, color='y')
+        ax.plot_surface(x + 250, y, z, shade=True, color='y')
+
+        y = np.linspace(-359, 555, 2)
+        x = np.linspace(-200, 200, 2)
+        xx, yy = np.meshgrid(x, y)
+        zz = np.zeros_like(xx)
+
+        ax.plot_surface(xx, yy, zz, shade=True, color='b')
+
+        x = np.linspace(-250, 250, 2)
+        y = np.linspace(-689, 689, 2)
+        xx, yy = np.meshgrid(x, y)
+        zz = np.zeros_like(xx) - RAD_Z_OFF
+        ax.plot_surface(xx, yy, zz, shade=True, color='y')
+        ax.disable_mouse_rotation()
+
+        ax.set_xlim3d(-700, 700)
+        ax.set_ylim3d(-700, 700)
+        ax.set_zlim3d(-700, 700)
+        self.ax = ax
+        
+    def update(self, *args):
+        pass
+        
 
 class ImageCoords(object):
     def __init__(self):
@@ -49,29 +100,45 @@ class ImageCoords(object):
         self.textvar['dec'] = Tk.StringVar()
         self.textvar['pitch'] = Tk.StringVar()
         self.textvar['phi'] = Tk.StringVar()
+        self.textvar['earth_ra_cb'] = Tk.StringVar()
+        self.textvar['earth_dec_cb'] = Tk.StringVar()
         Tk.Label(self.frame, text='RA, Dec').grid(row=0)
         Tk.Label(self.frame, text='Pitch, Phi').grid(row=1)
+        Tk.Label(self.frame, text='Earth_cb RA, Dec').grid(row=2)
         self.ra = Tk.Label(self.frame, textvariable=self.textvar['ra'], width=12)
         self.dec = Tk.Label(self.frame, textvariable=self.textvar['dec'], width=12)
         self.pitch = Tk.Label(self.frame, textvariable=self.textvar['pitch'])
         self.phi = Tk.Label(self.frame, textvariable=self.textvar['phi'])
+        self.earth_ra_cb = Tk.Label(self.frame, textvariable=self.textvar['earth_ra_cb'])
+        self.earth_dec_cb = Tk.Label(self.frame, textvariable=self.textvar['earth_dec_cb'])
         self.ra.grid(row=0, column=1)
         self.dec.grid(row=0, column=2)
         self.pitch.grid(row=1, column=1)
         self.phi.grid(row=1, column=2)
+        self.earth_ra_cb.grid(row=2, column=1)
+        self.earth_dec_cb.grid(row=2, column=2)
     
     def update(self, event):
         if event.inaxes != ax:
             return
         x = event.xdata
         y = event.ydata
+        i_ephem = int(date_slider.value.get())
+        sun_eci = ephem_xyzs['sun'][:, i_ephem]
+        earth_eci = ephem_xyzs['earth'][:, i_ephem]
         ra, dec = antisun.img2sky(x, y, sun_eci)
         r, phi = antisun.img2polar(x, y)
+        roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
+        q_att = Quat([ra, dec, roll])
+        earth_cb = np.dot(q_att.transform.transpose(), earth_eci)
+        earth_ra_cb, earth_dec_cb = Ska.quatutil.eci2radec(earth_cb)
         pitch = 180 - r
         self.textvar['ra'].set('{0:.4f}'.format(ra))
         self.textvar['dec'].set('{0:.4f}'.format(dec))
         self.textvar['pitch'].set('{0:.1f}'.format(pitch))
         self.textvar['phi'].set('{0:.1f}'.format(np.degrees(phi)))
+        self.textvar['earth_ra_cb'].set('{0:.1f}'.format(earth_ra_cb))
+        self.textvar['earth_dec_cb'].set('{0:.1f}'.format(earth_dec_cb))
 
 class TimePlot(object):
     def __init__(self, fig, rect, times, ephem_xyzs):
@@ -135,7 +202,7 @@ class SolarSystemObject(object):
             try:
                 region['line'].set_visible(True)
             except KeyError:
-                region['line'] = self.ax.plot(region['x'], region['y'],
+                region['line'] = self.ax.plot(region['x'], region['y'], linewidth=1,
                                               color=self.color, visible=True)[0]
 
         self.idxs_visible = idxs
@@ -213,8 +280,8 @@ matplotlib.rc("axes", labelsize=10)
 matplotlib.rc("xtick", labelsize=10)
 matplotlib.rc("ytick", labelsize=10)
 
-fig = Figure(figsize=(8,9), dpi=100)
-ax = fig.add_axes([0.1, 0.25, 0.7, 0.7], axisbg='b')
+fig = Figure(figsize=(8, 9), dpi=100)
+ax = fig.add_axes([0.1, 0.25, 0.7, 0.7], axisbg='k')
 ax.format_coord = lambda x,y: ""
 
 #ax.set_xticklabels([])
@@ -241,6 +308,7 @@ maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
 image = ax.imshow(imgs[0], interpolation='bilinear', animated=True, vmin=0,
                   vmax=maxscale, alpha=1.0, origin='lower')
 image.set_cmap('spectral')
+draw_pitch_contours(ax)
 ax.set_autoscale_on(False)
 
 # Make / draw Earth and Moon constraints

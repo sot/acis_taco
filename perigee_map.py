@@ -94,7 +94,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
     print ('Fetching ephemeris')
     objs = ('orbit', 'lunar', 'solar')
     axes = ('x', 'y', 'z')
-    msids = ['{0}ephem1_{1}'.format(obj, axis)
+    msids = ['{0}ephem0_{1}'.format(obj, axis)
              for obj in objs
              for axis in axes]
     ephems = fetch.MSIDset(msids, start, stop)
@@ -105,7 +105,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
 
     ephem_xyzs = {}
     for obj in ('orbit', 'lunar', 'solar'):
-        msids = ('{0}ephem1_{1}'.format(obj, axis) for axis in axes)
+        msids = ('{0}ephem0_{1}'.format(obj, axis) for axis in axes)
         ephem_xyzs[obj] = np.array([ephems[msid].vals for msid in msids])
 
     illums = np.zeros((n_ephem, ngrid, ngrid), dtype=np.float32)
@@ -140,19 +140,19 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 xs=xs,
                 ys=ys,
                 antisun_pitches=antisun_pitches,
-                ras=ras,
-                decs=decs,
                 ephem_xyzs=ephem_xyzs,
                 sun_eci=sun_eci,
                 )
 
-if 0 and __name__ == '__main__':
+if __name__ == '__main__':
     opt, args = get_options()
-    xs, ys, times, illums = calc_perigee_map(opt.start, opt.stop, opt.radzone_dur)
+    out = calc_perigee_map(opt.start, opt.stop)
+    pickle.dump(out, open(filename, 'w'))
     
-out = calc_perigee_map()
-try:
-    filename = sys.argv[1]
-except:
-    filename = 'cube.pkl'
-pickle.dump(out, open(filename, 'w'))
+if 0:
+    out = calc_perigee_map()
+    try:
+        filename = sys.argv[1]
+    except:
+        filename = 'cube.pkl'
+    pickle.dump(out, open(filename, 'w'))
