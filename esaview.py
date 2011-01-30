@@ -9,6 +9,7 @@ matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.mplot3d import Axes3D
 
 import Ska.quatutil
 from Chandra.Time import DateTime
@@ -40,7 +41,7 @@ def update_image(*args):
     img_rgba[:, :, 3] = alpha_slider.value.get()
     image.set_data(img_rgba)
     ax.set_title(get_date(i_center))
-    canvas.draw()
+    image_canvas.draw()
 
 def draw_pitch_contours(ax):
     phi = 0
@@ -51,20 +52,19 @@ def draw_pitch_contours(ax):
         patch = matplotlib.patches.Circle((xc, yc), rad, edgecolor='w', fill=False, linewidth=0.5)
         ax.add_patch(patch)
 
-class TacoView(object):
-    def __init__(self, fig):
+class Taco3dView(object):
+    def __init__(self, ax):
+        self.ax = ax
         TACO_X_OFF = 250
         TACO_Y_OFF = 689
         RAD_Z_OFF = 36
 
-        y_pnts = numpy.array([-689.0,  -333,  -63,  553, 689])
-        z_pnts = numpy.array([0.0, 777, 777, 421, 0]) - RAD_Z_OFF
+        y_pnts = np.array([-689.0,  -333,  -63,  553, 689])
+        z_pnts = np.array([0.0, 777, 777, 421, 0]) - RAD_Z_OFF
 
         y = np.array([y_pnts, y_pnts])
         z = np.array([np.zeros_like(z_pnts) - RAD_Z_OFF, z_pnts])
         x = np.zeros_like(z)
-
-        ax = fig.add_subplot(111, projection='3d')
 
         ax.plot_surface(x - 250, y, z, shade=True, color='y')
         ax.plot_surface(x + 250, y, z, shade=True, color='y')
@@ -81,16 +81,16 @@ class TacoView(object):
         xx, yy = np.meshgrid(x, y)
         zz = np.zeros_like(xx) - RAD_Z_OFF
         ax.plot_surface(xx, yy, zz, shade=True, color='y')
-        ax.disable_mouse_rotation()
+        # ax.disable_mouse_rotation()
 
         ax.set_xlim3d(-700, 700)
         ax.set_ylim3d(-700, 700)
         ax.set_zlim3d(-700, 700)
         self.ax = ax
         
-    def update(self, *args):
-        pass
-        
+    def update(self, ra, dec):
+        self.ax.view_init(dec, ra)
+        taco3d_canvas.draw()
 
 class ImageCoords(object):
     def __init__(self):
@@ -139,6 +139,7 @@ class ImageCoords(object):
         self.textvar['phi'].set('{0:.1f}'.format(np.degrees(phi)))
         self.textvar['earth_ra_cb'].set('{0:.1f}'.format(earth_ra_cb))
         self.textvar['earth_dec_cb'].set('{0:.1f}'.format(earth_dec_cb))
+        taco3d_view.update(earth_ra_cb, earth_dec_cb)
 
 class TimePlot(object):
     def __init__(self, fig, rect, times, ephem_xyzs):
@@ -284,24 +285,36 @@ fig = Figure(figsize=(8, 9), dpi=100)
 ax = fig.add_axes([0.1, 0.25, 0.7, 0.7], axisbg='k')
 ax.format_coord = lambda x,y: ""
 
-#ax.set_xticklabels([])
-#ax.set_yticklabels([])
-
-menu_frame = Tk.Frame()
+menu_frame = Tk.Frame(master=root)
 menu_frame.pack(side=Tk.TOP, anchor='w')
 quit_button = Tk.Button(master=menu_frame, text='Quit', command=sys.exit)
 quit_button.pack(side=Tk.LEFT)
 
-# Main image drawing frame (connected to Matplotlib canvas)
-image_frame = Tk.Frame()
-image_frame.pack(side=Tk.TOP, expand=1, fill='both')
-canvas = FigureCanvasTkAgg(fig, master=image_frame)
-canvas.show()
-canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+# Frame containing matplotlib figures
+mpl_figs_frame = Tk.Frame(master=root)
+mpl_figs_frame.pack(side=Tk.TOP, anchor='w')
 
-toolbar = NavigationToolbar2TkAgg(canvas, image_frame)
-toolbar.update()
-canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+# Main image drawing frame (connected to Matplotlib canvas)
+image_frame = Tk.Frame(master=mpl_figs_frame)
+image_frame.pack(side=Tk.LEFT, expand=1, fill='both')
+image_canvas = FigureCanvasTkAgg(fig, master=image_frame)
+image_canvas.show()
+image_canvas.get_tk_widget().pack(side=Tk.LEFT, fill=Tk.BOTH, expand=1)
+
+image_toolbar = NavigationToolbar2TkAgg(image_canvas, image_frame)
+image_toolbar.update()
+image_canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+
+# Taco3d frame and mpl figure
+taco3d_frame = Tk.Frame(master=mpl_figs_frame)
+taco3d_frame.pack(side=Tk.LEFT, expand=1, fill='both')
+fig2 = Figure(figsize=(5,5), dpi=100)
+taco3d_ax = fig2.add_axes([0.1, 0.1, 0.8, 0.8], projection='3d',
+                          azim=0.0, elev=0.0)
+taco3d_canvas = FigureCanvasTkAgg(fig2, master=taco3d_frame)
+taco3d_canvas.show()
+taco3d_canvas.get_tk_widget().pack(side=Tk.LEFT)
+taco3d_view = Taco3dView(taco3d_ax)
 
 # Draw image for the first time
 maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
@@ -345,9 +358,10 @@ width_slider.value.trace('w', time_plot.update)
 
 image_coords = ImageCoords()
 image_coords.frame.pack()
-canvas.mpl_connect('motion_notify_event', image_coords.update)
+image_canvas.mpl_connect('motion_notify_event', image_coords.update)
 
 update_image(None)
 earth.update()
 moon.update()
+image_canvas.draw()
 Tk.mainloop()
