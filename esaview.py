@@ -17,11 +17,8 @@ from Ska.Matplotlib import plot_cxctime, cxctime2plotdate
 import Ska.Sun
 from Quaternion import Quat
 
-def destroy(e): sys.exit()
-
-#def update_alpha(*args):
-#    image.set_alpha(alpha_slider.value.get())
-#    canvas.draw()
+def destroy(e):
+    sys.exit()
 
 def get_index_lims():
     center = int(date_slider.value.get())
@@ -53,8 +50,28 @@ def draw_pitch_contours(ax):
         ax.add_patch(patch)
 
 class Taco3dView(object):
-    def __init__(self, ax):
-        self.ax = ax
+    def __init__(self):
+        self.window = None
+
+    def open_window(self):
+        if self.window:
+            return
+
+        # Taco3d window and mpl figure
+        self.window = Tk.Toplevel()
+        self.window.protocol('WM_DELETE_WINDOW', self.destroy)
+        fig = Figure(figsize=(5,5), dpi=100)
+        self.canvas = FigureCanvasTkAgg(fig, master=self.window)
+        self.canvas.get_tk_widget().pack(side=Tk.LEFT)
+        self.ax = fig.add_axes([0.05, 0.05, 0.9, 0.9], projection='3d', azim=0.0, elev=0.0)
+        self.draw_taco3d()
+        self.canvas.show()
+
+    def destroy(self):
+        self.window.destroy()
+        self.window = None
+        
+    def draw_taco3d(self):
         TACO_X_OFF = 250
         TACO_Y_OFF = 689
         RAD_Z_OFF = 36
@@ -66,31 +83,30 @@ class Taco3dView(object):
         z = np.array([np.zeros_like(z_pnts) - RAD_Z_OFF, z_pnts])
         x = np.zeros_like(z)
 
-        ax.plot_surface(x - 250, y, z, shade=True, color='y')
-        ax.plot_surface(x + 250, y, z, shade=True, color='y')
+        self.ax.plot_surface(x - 250, y, z, shade=True, color='y')
+        self.ax.plot_surface(x + 250, y, z, shade=True, color='y')
 
         y = np.linspace(-359, 555, 2)
         x = np.linspace(-200, 200, 2)
         xx, yy = np.meshgrid(x, y)
         zz = np.zeros_like(xx)
 
-        ax.plot_surface(xx, yy, zz, shade=True, color='b')
+        self.ax.plot_surface(xx, yy, zz, shade=True, color='b')
 
         x = np.linspace(-250, 250, 2)
         y = np.linspace(-689, 689, 2)
         xx, yy = np.meshgrid(x, y)
         zz = np.zeros_like(xx) - RAD_Z_OFF
-        ax.plot_surface(xx, yy, zz, shade=True, color='y')
-        # ax.disable_mouse_rotation()
-
-        ax.set_xlim3d(-700, 700)
-        ax.set_ylim3d(-700, 700)
-        ax.set_zlim3d(-700, 700)
-        self.ax = ax
+        self.ax.plot_surface(xx, yy, zz, shade=True, color='y')
+        
+        self.ax.set_xlim3d(-700, 700)
+        self.ax.set_ylim3d(-700, 700)
+        self.ax.set_zlim3d(-700, 700)
         
     def update(self, ra, dec):
-        self.ax.view_init(dec, ra)
-        taco3d_canvas.draw()
+        if self.window:
+            self.ax.view_init(dec, ra)
+            self.canvas.draw()
 
 class ImageCoords(object):
     def __init__(self):
@@ -208,16 +224,6 @@ class SolarSystemObject(object):
 
         self.idxs_visible = idxs
 
-#         for i, line in enumerate(self.lines):
-#             if i0 <= i <= i1:
-#                 line.set_visible(True)
-#                 if i == i_center:
-#                     line.set_linewidth(2.0)
-#                 else:
-#                     line.set_linewidth(1.0)
-#             else:
-#                 line.set_visible(False)
-                                               
 class Slider(object):
     def __init__(self, minval, maxval, label_command=None, side=Tk.TOP, anchor='w', **kwargs):
         self.label_command = label_command
@@ -273,6 +279,8 @@ limb_margin = dict(sun=45,
                    moon=5,
                    earth=10)
 
+taco3d_view = Taco3dView()
+
 root = Tk.Tk()
 root.wm_title("ESA viewer")
 root.bind("<Destroy>", destroy)
@@ -289,6 +297,8 @@ menu_frame = Tk.Frame(master=root)
 menu_frame.pack(side=Tk.TOP, anchor='w')
 quit_button = Tk.Button(master=menu_frame, text='Quit', command=sys.exit)
 quit_button.pack(side=Tk.LEFT)
+taco3d_button = Tk.Button(master=menu_frame, text='Taco3d', command=taco3d_view.open_window)
+taco3d_button.pack(side=Tk.LEFT)
 
 # Frame containing matplotlib figures
 mpl_figs_frame = Tk.Frame(master=root)
@@ -298,23 +308,11 @@ mpl_figs_frame.pack(side=Tk.TOP, anchor='w')
 image_frame = Tk.Frame(master=mpl_figs_frame)
 image_frame.pack(side=Tk.LEFT, expand=1, fill='both')
 image_canvas = FigureCanvasTkAgg(fig, master=image_frame)
-image_canvas.show()
 image_canvas.get_tk_widget().pack(side=Tk.LEFT, fill=Tk.BOTH, expand=1)
 
 image_toolbar = NavigationToolbar2TkAgg(image_canvas, image_frame)
 image_toolbar.update()
 image_canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
-
-# Taco3d frame and mpl figure
-taco3d_frame = Tk.Frame(master=mpl_figs_frame)
-taco3d_frame.pack(side=Tk.LEFT, expand=1, fill='both')
-fig2 = Figure(figsize=(5,5), dpi=100)
-taco3d_ax = fig2.add_axes([0.1, 0.1, 0.8, 0.8], projection='3d',
-                          azim=0.0, elev=0.0)
-taco3d_canvas = FigureCanvasTkAgg(fig2, master=taco3d_frame)
-taco3d_canvas.show()
-taco3d_canvas.get_tk_widget().pack(side=Tk.LEFT)
-taco3d_view = Taco3dView(taco3d_ax)
 
 # Draw image for the first time
 maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
