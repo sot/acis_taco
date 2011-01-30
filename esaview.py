@@ -221,6 +221,13 @@ class SolarSystemObject(object):
             except KeyError:
                 region['line'] = self.ax.plot(region['x'], region['y'], linewidth=1,
                                               color=self.color, visible=True)[0]
+        print idxs, self.idxs_visible, idx_center
+        self.regions[idx_center]['line'].set_linewidth(2.5)
+        try:
+            self.regions[self.last_idx_center]['line'].set_linewidth(1)
+        except AttributeError:
+            pass
+        self.last_idx_center = idx_center
 
         self.idxs_visible = idxs
 
