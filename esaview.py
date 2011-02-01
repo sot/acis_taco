@@ -84,7 +84,7 @@ class Taco3dView(object):
         x = np.zeros_like(z)
 
         self.ax.plot_surface(x - 250, y, z, shade=True, color='y')
-        self.ax.plot_surface(x + 250, y, z, shade=True, color='y')
+        self.ax.plot_surface(x + 250, y, z, shade=True, color='r')
 
         y = np.linspace(-359, 555, 2)
         x = np.linspace(-200, 200, 2)
@@ -102,6 +102,9 @@ class Taco3dView(object):
         self.ax.set_xlim3d(-700, 700)
         self.ax.set_ylim3d(-700, 700)
         self.ax.set_zlim3d(-700, 700)
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
         
     def update(self, ra, dec):
         if self.window:
@@ -120,7 +123,7 @@ class ImageCoords(object):
         self.textvar['earth_dec_cb'] = Tk.StringVar()
         Tk.Label(self.frame, text='RA, Dec').grid(row=0)
         Tk.Label(self.frame, text='Pitch, Phi').grid(row=1)
-        Tk.Label(self.frame, text='Earth_cb RA, Dec').grid(row=2)
+        Tk.Label(self.frame, text='Earth Alt, Az').grid(row=2)
         self.ra = Tk.Label(self.frame, textvariable=self.textvar['ra'], width=12)
         self.dec = Tk.Label(self.frame, textvariable=self.textvar['dec'], width=12)
         self.pitch = Tk.Label(self.frame, textvariable=self.textvar['pitch'])
@@ -131,8 +134,8 @@ class ImageCoords(object):
         self.dec.grid(row=0, column=2)
         self.pitch.grid(row=1, column=1)
         self.phi.grid(row=1, column=2)
-        self.earth_ra_cb.grid(row=2, column=1)
-        self.earth_dec_cb.grid(row=2, column=2)
+        self.earth_ra_cb.grid(row=2, column=2)
+        self.earth_dec_cb.grid(row=2, column=1)
     
     def update(self, event):
         if event.inaxes != ax:
@@ -221,21 +224,20 @@ class SolarSystemObject(object):
             except KeyError:
                 region['line'] = self.ax.plot(region['x'], region['y'], linewidth=1,
                                               color=self.color, visible=True)[0]
-        print idxs, self.idxs_visible, idx_center
-        self.regions[idx_center]['line'].set_linewidth(2.5)
         try:
             self.regions[self.last_idx_center]['line'].set_linewidth(1)
         except AttributeError:
             pass
+        self.regions[idx_center]['line'].set_linewidth(2.5)
         self.last_idx_center = idx_center
-
         self.idxs_visible = idxs
 
 class Slider(object):
-    def __init__(self, minval, maxval, label_command=None, side=Tk.TOP, anchor='w', **kwargs):
+    def __init__(self, minval, maxval, label_command=None,
+                 side=Tk.TOP, anchor='w', master=None, **kwargs):
         self.label_command = label_command
         
-        self.frame = Tk.Frame()
+        self.frame = Tk.Frame(master=master)
         self.frame.pack(side=side, anchor=anchor)
 
         self.value = Tk.DoubleVar()
@@ -297,8 +299,10 @@ matplotlib.rc("xtick", labelsize=10)
 matplotlib.rc("ytick", labelsize=10)
 
 fig = Figure(figsize=(8, 9), dpi=100)
-ax = fig.add_axes([0.1, 0.25, 0.7, 0.7], axisbg='k')
+ax = fig.add_axes([0.1, 0.2, 0.8, 0.75], axisbg='k')
 ax.format_coord = lambda x,y: ""
+ax.set_xticklabels([])
+ax.set_yticklabels([])
 
 menu_frame = Tk.Frame(master=root)
 menu_frame.pack(side=Tk.TOP, anchor='w')
@@ -338,32 +342,37 @@ divider = make_axes_locatable(ax)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 fig.colorbar(image, cax=cax)
 
+sliders_frame = Tk.Frame(master=root)
+sliders_frame.pack(side=Tk.LEFT)
 # Date slider control
-date_slider = Slider(minval=0, maxval=len(imgs)-1, label_command=get_date, length=500)
-date_slider.value.trace('w', earth.update)
-date_slider.value.trace('w', moon.update)
-date_slider.value.trace('w', update_image)
+date_slider = Slider(minval=0, maxval=len(imgs)-1, label_command=get_date, length=400)
 
 # Width slider control
 width_slider = Slider(minval=0, maxval=14.0, resolution=0.1,
-                      label_command=lambda x: '{0:.1f}'.format(x))
-width_slider.value.trace('w', earth.update)
-width_slider.value.trace('w', moon.update)
-width_slider.value.trace('w', update_image)
+                      label_command=lambda x: 'Width: {0:.1f} hours'.format(x))
 
 # Alpha slider control
 alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01,
-                      label_command=lambda x: '{0:.2f}'.format(x))
+                      label_command=lambda x: 'Alpha: {0:.2f}'.format(x))
 alpha_slider.value.set(1.0)
-alpha_slider.value.trace('w', update_image)
 
-time_plot = TimePlot(fig, [0.1, 0.05, 0.7, 0.15], times, ephem_xyzs)
-date_slider.value.trace('w', time_plot.update)
-width_slider.value.trace('w', time_plot.update)
+time_plot = TimePlot(fig, [0.1, 0.05, 0.8, 0.15], times, ephem_xyzs)
 
 image_coords = ImageCoords()
 image_coords.frame.pack()
 image_canvas.mpl_connect('motion_notify_event', image_coords.update)
+
+date_slider.value.trace('w', update_image)
+date_slider.value.trace('w', earth.update)
+date_slider.value.trace('w', moon.update)
+date_slider.value.trace('w', time_plot.update)
+
+width_slider.value.trace('w', update_image)
+width_slider.value.trace('w', earth.update)
+width_slider.value.trace('w', moon.update)
+width_slider.value.trace('w', time_plot.update)
+
+alpha_slider.value.trace('w', update_image)
 
 update_image(None)
 earth.update()
