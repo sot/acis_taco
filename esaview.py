@@ -141,9 +141,9 @@ class Taco3dView(object):
             self.canvas.draw()
 
 class ImageCoords(object):
-    def __init__(self, ax):
+    def __init__(self, ax, master):
         self.ax = ax
-        self.frame = Tk.Frame()
+        self.frame = Tk.Frame(master=master, relief=Tk.RAISED, borderwidth=2)
         self.textvar = dict()
         self.textvar['ra'] = Tk.StringVar()
         self.textvar['dec'] = Tk.StringVar()
@@ -241,7 +241,6 @@ class SolarSystemObject(object):
         idxs = np.arange(0, n_times, stride)
         idx_center = idxs[np.argmin(np.abs(idxs - i_center))]
         idxs = set(idxs[(idxs >= i0) & (idxs <= i1)])
-        print i0, i1, stride, len(idxs)
         # Disable regions that are currently visible but not in next view
         for idx in self.idxs_visible - idxs:
             self.regions[idx]['line'].set_visible(False)
@@ -352,22 +351,22 @@ image_canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
 earth = SolarSystemObject('earth', times, ephem_xyzs, color='r', ax=illum_image.ax)
 moon = SolarSystemObject('moon', times, ephem_xyzs, color='y', ax=illum_image.ax)
 
-sliders_frame = Tk.Frame(master=root)
+controls_frame = Tk.Frame(master=root)
+controls_frame.pack(side=Tk.LEFT, fill=Tk.X, expand=1)
+sliders_frame = Tk.Frame(master=controls_frame)
 sliders_frame.pack(side=Tk.LEFT)
-# Date slider control
-date_slider = Slider(minval=0, maxval=n_times-1, label_command=get_date, length=400)
 
-# Width slider control
-width_slider = Slider(minval=0, maxval=14.0, resolution=0.1,
+# Sliders
+date_slider = Slider(minval=0, maxval=n_times-1, length=350, master=sliders_frame,
+                     label_command=lambda x: 'Time: {0}'.format(get_date(x)))
+width_slider = Slider(minval=0, maxval=14.0, resolution=0.1, length=350, master=sliders_frame,
                       label_command=lambda x: 'Width: {0:.1f} hours'.format(x))
-
-# Alpha slider control
-alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01,
+alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01, master=sliders_frame,
                       label_command=lambda x: 'Alpha: {0:.2f}'.format(x))
 alpha_slider.value.set(1.0)
 
-image_coords = ImageCoords(illum_image.ax)
-image_coords.frame.pack()
+image_coords = ImageCoords(illum_image.ax, master=controls_frame)
+image_coords.frame.pack(side=Tk.RIGHT)
 
 # Set up callbacks
 image_canvas.mpl_connect('motion_notify_event', image_coords.update)
@@ -387,6 +386,14 @@ width_slider.value.trace('w', time_plot.update)
 
 alpha_slider.value.trace('w', lambda *args: image_canvas.draw())
 alpha_slider.value.trace('w', illum_image.update)
+
+def change_date(incr):
+    date_slider.value.set(date_slider.value.get()+incr)
+
+root.bind("<Right>", lambda x: change_date(1))
+root.bind("<Left>", lambda x: change_date(-1))
+root.bind("<Shift-Right>", lambda x: change_date(64*12))
+root.bind("<Shift-Left>", lambda x: change_date(-64*12))
 
 # Initial updates
 illum_image.update(None)
