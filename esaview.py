@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import Tkinter as Tk
 import sys
 import cPickle as pickle
@@ -27,13 +28,16 @@ def get_index_lims():
     i1 = center + wid
     if i0 < 0:
         i0 = 0
-    if i1 >= len(imgs):
-        i1 = len(imgs) - 1
+    if i1 >= n_times:
+        i1 = n_times - 1
     return i0, i1, center
 
 def update_image(*args):
     i0, i1, i_center = get_index_lims()
+    i0 = imgs_idx_map[i0]
+    i1 = imgs_idx_map[i1]
     img = imgs[i0:i1+1].sum(0)
+
     img_rgba = matplotlib.cm.spectral(img / 7.2)
     img_rgba[:, :, 3] = alpha_slider.value.get()
     image.set_data(img_rgba)
@@ -190,7 +194,7 @@ class SolarSystemObject(object):
         self.regions = {}
         self.idxs_visible = set()
 
-        for idx in range(len(times)):
+        for idx in range(n_times):
             xyz = ephem_xyzs[name][:, idx]
             dist = np.sqrt(np.sum(xyz**2))
             open_angle = np.arcsin(radius[name] / dist) + np.radians(limb_margin[name])
@@ -202,6 +206,7 @@ class SolarSystemObject(object):
                             np.cos(phis) * sin_theta])  # OFLS uses -cos(phi)
             quat_x_to_obj = Ska.quatutil.quat_x_to_vec(xyz)
             obj_ecis = np.dot(quat_x_to_obj.transform, ecis)
+            sun_eci = ephem_xyzs['sun'][:, idx]
             x, y = antisun.eci2img(obj_ecis, sun_eci)
             self.regions[idx] = dict(x=x, y=y, linewidth=1)
 
@@ -264,18 +269,22 @@ def get_date(idx_img):
     idx_img = int(idx_img)
     if idx_img < 0:
         idx_img = 0
-    if idx_img >= len(times):
-        idx_img = len(times) - 1
+    if idx_img >= n_times:
+        idx_img = n_times - 1
     return DateTime(times[idx_img]).date[:-4]
 
 # Load data and set some globals (hopefully minimize this later)
 filename = sys.argv[1]
 dat = pickle.load(open(filename))
-imgs = dat['illums']
 times = dat['times']
+n_times = len(times)
 antisun = dat['antisun']
-sun_eci = dat['sun_eci']
 ephem_xyzs = dat['ephem_xyzs']
+idxs = np.arange(n_times)
+imgs = dat['illums']
+imgs_idxs = dat['illum_idxs']
+imgs_idx_map = np.searchsorted(imgs_idxs, idxs)
+np.clip(imgs_idx_map, 0, n_times - 1)
 
 # Ephemerides in frame aligned with ECI but centered on Chandra
 ephem_xyzs['sun'] = ephem_xyzs['solar'] - ephem_xyzs['orbit']
@@ -345,7 +354,7 @@ fig.colorbar(image, cax=cax)
 sliders_frame = Tk.Frame(master=root)
 sliders_frame.pack(side=Tk.LEFT)
 # Date slider control
-date_slider = Slider(minval=0, maxval=len(imgs)-1, label_command=get_date, length=400)
+date_slider = Slider(minval=0, maxval=n_times-1, label_command=get_date, length=400)
 
 # Width slider control
 width_slider = Slider(minval=0, maxval=14.0, resolution=0.1,

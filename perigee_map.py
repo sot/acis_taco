@@ -33,13 +33,13 @@ def get_options():
     parser.add_option("--stop",
                       default='2010:228:22:00:00',
                       help="Stop time")
-    parser.add_option("--radzone-dur",
-                      type='float',
-                      default=12,
-                      help="Rad zone duration (hours)")
+    parser.add_option("--ngrid",
+                      type='int',
+                      default=50,
+                      help="Number of grid points (one-axis) on map")
     parser.add_option("--out",
-                      default='out',
-                      help="Output root name")
+                      default='illum.pkl',
+                      help="Output file name")
     parser.add_option("--nproc",
                       type='int',
                       default=1,
@@ -74,21 +74,6 @@ def get_antisun_grid(ngrid=10):
     y = y.flatten()
     return antisun, x, y
 
-def get_att_vecs(ngrid=100):
-    # Pitch angle from anti-sun direction
-    max_pitch = 135.0
-    x = np.linspace(-max_pitch, max_pitch, ngrid)[np.newaxis, :] + np.zeros((ngrid, ngrid))
-    x = x.flatten()
-    y = np.linspace(-max_pitch, max_pitch, ngrid)[:, np.newaxis] + np.zeros((ngrid, ngrid))
-    y = y.flatten()
-    theta = np.radians(np.sqrt(x**2 + y**2))
-    phi = np.arctan2(y, x)
-    sin_theta = np.sin(theta)
-    att_vecs = np.array([np.cos(theta),
-                         np.sin(phi) * sin_theta,
-                         -np.cos(phi) * sin_theta])
-    return theta, phi, att_vecs, x, y
-
 def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=50):
     # Get orbital ephemeris in requested time range
     print ('Fetching ephemeris')
@@ -108,51 +93,45 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
         msids = ('{0}ephem0_{1}'.format(obj, axis) for axis in axes)
         ephem_xyzs[obj] = np.array([ephems[msid].vals for msid in msids])
 
-    illums = np.zeros((n_ephem, ngrid, ngrid), dtype=np.float32)
+    illum_maps = []
+    illum_idxs = []
     antisun, xs, ys = get_antisun_grid(ngrid)
     antisun_pitches, phis = antisun.img2polar(xs, ys)
 
     for i_ephem, ephem_xyz in enumerate(ephem_xyzs['orbit'].transpose()):
         # Calculate a grid of attitude vectors centered on the anti-sun line and extending
         # from sun-pitch=180 (center) to sun-pitch=45 (edge).  
+        orbit_r = np.sqrt(np.sum(ephem_xyzs['orbit'][:, i_ephem]**2))
+        if orbit_r > 50000e3:
+            continue
         sun_eci = ephem_xyzs['solar'][:, i_ephem] - ephem_xyzs['orbit'][:, i_ephem]
         att_vecs = antisun.img2eci(xs, ys, sun_eci)
         ras, decs = Ska.quatutil.eci2radec(att_vecs)
-
+        illum_map = np.zeros((ngrid, ngrid), dtype=np.float32)
         print i_ephem, n_ephem, ephem_xyz
         for iy in range(ngrid):
             for ix in range(ngrid):
                 i_vec = iy * ngrid + ix
-                orbit_r = np.sqrt(np.sum(ephem_xyzs['orbit'][:, i_ephem]**2))
-                if antisun_pitches[i_vec] < 135 and orbit_r < 50000e3:
+                if antisun_pitches[i_vec] < 135:
                     ra, dec = ras[i_vec], decs[i_vec]
                     roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
                     _, att_illums, _ = taco2.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
                     illum = sum(att_illums)
                 else:
                     illum = 0.0
-                illums[i_ephem, iy, ix] = illum
+                illum_map[iy, ix] = illum
+        illum_idxs.append(i_ephem)
+        illum_maps.append(illum_map)
         
     # debug_here()
-    return dict(illums=illums,
+    return dict(illums=np.array(illum_maps),
+                illum_idxs=np.array(illum_idxs),
                 times=times,
                 antisun=antisun,
-                xs=xs,
-                ys=ys,
-                antisun_pitches=antisun_pitches,
                 ephem_xyzs=ephem_xyzs,
-                sun_eci=sun_eci,
                 )
 
 if __name__ == '__main__':
     opt, args = get_options()
-    out = calc_perigee_map(opt.start, opt.stop)
-    pickle.dump(out, open(filename, 'w'))
-    
-if 0:
-    out = calc_perigee_map()
-    try:
-        filename = sys.argv[1]
-    except:
-        filename = 'cube.pkl'
-    pickle.dump(out, open(filename, 'w'))
+    out = calc_perigee_map(opt.start, opt.stop, ngrid=opt.ngrid)
+    pickle.dump(out, open(opt.out, 'w'))
