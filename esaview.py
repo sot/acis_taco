@@ -18,12 +18,17 @@ from Ska.Matplotlib import plot_cxctime, cxctime2plotdate
 import Ska.Sun
 from Quaternion import Quat
 
-def destroy(e):
-    sys.exit()
+def get_date(idx_img):
+    idx_img = int(idx_img)
+    if idx_img < 0:
+        idx_img = 0
+    if idx_img >= n_times:
+        idx_img = n_times - 1
+    return DateTime(times[idx_img]).date[:-4]
 
 def get_index_lims():
     center = int(date_slider.value.get())
-    wid = int(width_slider.value.get() * 3)
+    wid = int(width_slider.value.get() * 6) # hardcoded for 5-min intervals
     i0 = center - wid
     i1 = center + wid
     if i0 < 0:
@@ -32,26 +37,46 @@ def get_index_lims():
         i1 = n_times - 1
     return i0, i1, center
 
-def update_image(*args):
-    i0, i1, i_center = get_index_lims()
-    i0 = imgs_idx_map[i0]
-    i1 = imgs_idx_map[i1]
-    img = imgs[i0:i1+1].sum(0)
+class IllumImage(object):
+    def __init__(self, fig):
+        self.ax = fig.add_axes([0.1, 0.2, 0.8, 0.75], axisbg='k')
+        self.ax.format_coord = lambda x,y: ""
+        self.ax.set_xticklabels([])
+        self.ax.set_yticklabels([])
 
-    img_rgba = matplotlib.cm.spectral(img / 7.2)
-    img_rgba[:, :, 3] = alpha_slider.value.get()
-    image.set_data(img_rgba)
-    ax.set_title(get_date(i_center))
-    image_canvas.draw()
+        # Draw image for the first time
+        maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
+        self.image = self.ax.imshow(imgs[0], interpolation='bilinear', animated=True, vmin=0,
+                          vmax=maxscale, alpha=1.0, origin='lower')
+        self.image.set_cmap('spectral')
+        self.draw_pitch_contours()
+        self.ax.set_autoscale_on(False)
 
-def draw_pitch_contours(ax):
-    phi = 0
-    xc, yc = antisun.phys2img(0, 0)
-    for pitch in (170, 156, 152, 135, 120, 105, 90, 75, 60, 45):
-        x, y = antisun.phys2img(180-pitch, 0)
-        rad = np.sqrt((x - xc)**2 + (y - yc)**2)
-        patch = matplotlib.patches.Circle((xc, yc), rad, edgecolor='w', fill=False, linewidth=0.5)
-        ax.add_patch(patch)
+        # Make colorbar
+        divider = make_axes_locatable(self.ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(self.image, cax=cax)
+
+    def update(self, *args):
+        i0, i1, i_center = get_index_lims()
+        i0 = imgs_idx_map[i0]
+        i1 = imgs_idx_map[i1]
+        img = imgs[i0:i1+1].sum(0)
+
+        img_rgba = matplotlib.cm.spectral(img / 7.2)
+        img_rgba[:, :, 3] = alpha_slider.value.get()
+        self.image.set_data(img_rgba)
+        self.ax.set_title(get_date(i_center))
+        # image_canvas.draw()
+
+    def draw_pitch_contours(self):
+        phi = 0
+        xc, yc = antisun.phys2img(0, 0)
+        for pitch in (170, 156, 152, 135, 120, 105, 90, 75, 60, 45):
+            x, y = antisun.phys2img(180-pitch, 0)
+            rad = np.sqrt((x - xc)**2 + (y - yc)**2)
+            patch = matplotlib.patches.Circle((xc, yc), rad, edgecolor='w', fill=False, linewidth=0.5)
+            self.ax.add_patch(patch)
 
 class Taco3dView(object):
     def __init__(self):
@@ -116,7 +141,8 @@ class Taco3dView(object):
             self.canvas.draw()
 
 class ImageCoords(object):
-    def __init__(self):
+    def __init__(self, ax):
+        self.ax = ax
         self.frame = Tk.Frame()
         self.textvar = dict()
         self.textvar['ra'] = Tk.StringVar()
@@ -142,7 +168,7 @@ class ImageCoords(object):
         self.earth_dec_cb.grid(row=2, column=1)
     
     def update(self, event):
-        if event.inaxes != ax:
+        if event.inaxes != self.ax:
             return
         x = event.xdata
         y = event.ydata
@@ -171,7 +197,6 @@ class TimePlot(object):
         plot_cxctime(times, orbit_rs, fig=fig, ax=self.ax)
         self.ax.grid()
         self.ax.set_autoscale_on(False)
-        self.update()
 
     def update(self, *args):
         pd0, pd1, pd_center = cxctime2plotdate(times[np.array(get_index_lims())])
@@ -212,12 +237,11 @@ class SolarSystemObject(object):
 
     def update(self, *args):
         i0, i1, i_center = get_index_lims()
-        stride = (i1 - i0) / 20
-        if stride == 0:
-            stride = 1
-        idxs = np.arange(0, len(self.times), stride)
+        stride = (i1 - i0) / 20 + 1
+        idxs = np.arange(0, n_times, stride)
         idx_center = idxs[np.argmin(np.abs(idxs - i_center))]
         idxs = set(idxs[(idxs >= i0) & (idxs <= i1)])
+        print i0, i1, stride, len(idxs)
         # Disable regions that are currently visible but not in next view
         for idx in self.idxs_visible - idxs:
             self.regions[idx]['line'].set_visible(False)
@@ -265,14 +289,6 @@ class Slider(object):
         if self.label_command is not None:
             self.label_var.set(self.label_command(self.value.get()))
         
-def get_date(idx_img):
-    idx_img = int(idx_img)
-    if idx_img < 0:
-        idx_img = 0
-    if idx_img >= n_times:
-        idx_img = n_times - 1
-    return DateTime(times[idx_img]).date[:-4]
-
 # Load data and set some globals (hopefully minimize this later)
 filename = sys.argv[1]
 dat = pickle.load(open(filename))
@@ -299,20 +315,15 @@ limb_margin = dict(sun=45,
 
 taco3d_view = Taco3dView()
 
-root = Tk.Tk()
-root.wm_title("ESA viewer")
-root.bind("<Destroy>", destroy)
-
 matplotlib.rc("axes", labelsize=10)
 matplotlib.rc("xtick", labelsize=10)
 matplotlib.rc("ytick", labelsize=10)
 
-fig = Figure(figsize=(8, 9), dpi=100)
-ax = fig.add_axes([0.1, 0.2, 0.8, 0.75], axisbg='k')
-ax.format_coord = lambda x,y: ""
-ax.set_xticklabels([])
-ax.set_yticklabels([])
+root = Tk.Tk()
+root.wm_title("ESA viewer")
+root.bind("<Destroy>", lambda x: sys.exit)
 
+# Top menu bar
 menu_frame = Tk.Frame(master=root)
 menu_frame.pack(side=Tk.TOP, anchor='w')
 quit_button = Tk.Button(master=menu_frame, text='Quit', command=sys.exit)
@@ -325,6 +336,9 @@ mpl_figs_frame = Tk.Frame(master=root)
 mpl_figs_frame.pack(side=Tk.TOP, anchor='w')
 
 # Main image drawing frame (connected to Matplotlib canvas)
+fig = Figure(figsize=(8, 9), dpi=100)
+illum_image = IllumImage(fig)
+time_plot = TimePlot(fig, [0.1, 0.05, 0.8, 0.15], times, ephem_xyzs)
 image_frame = Tk.Frame(master=mpl_figs_frame)
 image_frame.pack(side=Tk.LEFT, expand=1, fill='both')
 image_canvas = FigureCanvasTkAgg(fig, master=image_frame)
@@ -334,22 +348,9 @@ image_toolbar = NavigationToolbar2TkAgg(image_canvas, image_frame)
 image_toolbar.update()
 image_canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
 
-# Draw image for the first time
-maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
-image = ax.imshow(imgs[0], interpolation='bilinear', animated=True, vmin=0,
-                  vmax=maxscale, alpha=1.0, origin='lower')
-image.set_cmap('spectral')
-draw_pitch_contours(ax)
-ax.set_autoscale_on(False)
-
 # Make / draw Earth and Moon constraints
-earth = SolarSystemObject('earth', times, ephem_xyzs, color='r', ax=ax)
-moon = SolarSystemObject('moon', times, ephem_xyzs, color='y', ax=ax)
-
-# Make colorbar
-divider = make_axes_locatable(ax)
-cax = divider.append_axes("right", size="5%", pad=0.05)
-fig.colorbar(image, cax=cax)
+earth = SolarSystemObject('earth', times, ephem_xyzs, color='r', ax=illum_image.ax)
+moon = SolarSystemObject('moon', times, ephem_xyzs, color='y', ax=illum_image.ax)
 
 sliders_frame = Tk.Frame(master=root)
 sliders_frame.pack(side=Tk.LEFT)
@@ -365,26 +366,34 @@ alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01,
                       label_command=lambda x: 'Alpha: {0:.2f}'.format(x))
 alpha_slider.value.set(1.0)
 
-time_plot = TimePlot(fig, [0.1, 0.05, 0.8, 0.15], times, ephem_xyzs)
-
-image_coords = ImageCoords()
+image_coords = ImageCoords(illum_image.ax)
 image_coords.frame.pack()
+
+# Set up callbacks
 image_canvas.mpl_connect('motion_notify_event', image_coords.update)
 
-date_slider.value.trace('w', update_image)
+# trace seems to call callbacks in reverse order from initialization order
+date_slider.value.trace('w', lambda *args: image_canvas.draw())
+date_slider.value.trace('w', illum_image.update)
 date_slider.value.trace('w', earth.update)
 date_slider.value.trace('w', moon.update)
 date_slider.value.trace('w', time_plot.update)
 
-width_slider.value.trace('w', update_image)
+width_slider.value.trace('w', lambda *args: image_canvas.draw())
+width_slider.value.trace('w', illum_image.update)
 width_slider.value.trace('w', earth.update)
 width_slider.value.trace('w', moon.update)
 width_slider.value.trace('w', time_plot.update)
 
-alpha_slider.value.trace('w', update_image)
+alpha_slider.value.trace('w', lambda *args: image_canvas.draw())
+alpha_slider.value.trace('w', illum_image.update)
 
-update_image(None)
+# Initial updates
+illum_image.update(None)
 earth.update()
 moon.update()
+time_plot.update()
 image_canvas.draw()
+
+# Do it
 Tk.mainloop()
