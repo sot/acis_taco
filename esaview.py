@@ -272,7 +272,7 @@ class SolarSystemObject(object):
 
     def update(self, *args):
         i0, i1, i_center = get_index_lims()
-        stride = (i1 - i0) / 20 + 1
+        stride = (i1 - i0) / 30 + 1
         idxs = np.arange(0, n_times, stride)
         idx_center = idxs[np.argmin(np.abs(idxs - i_center))]
         idxs = set(idxs[(idxs >= i0) & (idxs <= i1)])
