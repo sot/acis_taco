@@ -221,10 +221,16 @@ class ImageCoords(object):
 class TimePlot(object):
     def __init__(self, fig, rect, times, ephem_xyzs):
         self.ax = fig.add_axes(rect)
-        orbit_rs = np.sqrt(np.sum(ephem_xyzs['earth']**2, 0))
-        plot_cxctime(times, orbit_rs, fig=fig, ax=self.ax)
+        self.orbit_rs = np.sqrt(np.sum(ephem_xyzs['earth']**2, 0))
+        plot_cxctime(times, self.orbit_rs, fig=fig, ax=self.ax)
         self.ax.grid()
         self.ax.set_autoscale_on(False)
+
+    def get_perigee_idxs(self):
+        alt = self.orbit_rs
+        local_min = (alt[2:] > alt[1:-1]) & (alt[1:-1] < alt[:-2])
+        print np.where(local_min)[0]
+        return np.where(local_min)[0]
 
     def update(self, *args):
         pd0, pd1, pd_center = cxctime2plotdate(times[np.array(get_index_lims())])
@@ -391,6 +397,8 @@ width_slider = Slider(minval=0, maxval=14.0, resolution=0.1, length=350, master=
                       label_command=lambda x: 'Width: {0:.1f} hours'.format(x))
 alpha_slider = Slider(minval=0.0, maxval=1.0, resolution=0.01, master=sliders_frame,
                       label_command=lambda x: 'Alpha: {0:.2f}'.format(x))
+date_slider.value.set(time_plot.get_perigee_idxs()[0])
+width_slider.value.set(3.0)
 alpha_slider.value.set(1.0)
 
 image_coords = ImageCoords(illum_image.ax, master=controls_frame)
