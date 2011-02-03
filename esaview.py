@@ -238,6 +238,12 @@ class TimePlot(object):
             self.patch.set_width(pd1-pd0)
 
 class SolarSystemObject(object):
+    RADIUS = {'sun': 695500e3,
+              'moon': 1747e3,
+              'earth': 6371e3}
+    LIMB_MARGIN = dict(sun=45,
+                       moon=6,
+                       earth=10)
     def __init__(self, name, times, xyzs, color, ax, npoly=40):
         self.name = name
         self.times = times
@@ -250,7 +256,8 @@ class SolarSystemObject(object):
         for idx in range(n_times):
             xyz = ephem_xyzs[name][:, idx]
             dist = np.sqrt(np.sum(xyz**2))
-            open_angle = np.arcsin(radius[name] / dist) + np.radians(limb_margin[name])
+            open_angle = (np.arcsin(self.RADIUS[name] / dist)
+                          + np.radians(self.LIMB_MARGIN[name]))
             phis = np.linspace(0, 2*np.pi, npoly)
             theta = open_angle + phis * 0.0
             sin_theta = np.sin(theta)
@@ -332,12 +339,6 @@ np.clip(imgs_idx_map, 0, n_times - 1)
 ephem_xyzs['sun'] = ephem_xyzs['solar'] - ephem_xyzs['orbit']
 ephem_xyzs['earth'] = -ephem_xyzs['orbit']
 ephem_xyzs['moon'] = ephem_xyzs['lunar'] - ephem_xyzs['orbit']
-radius = {'sun': 695500e3,
-          'moon': 1747e3,
-          'earth': 6371e3}
-limb_margin = dict(sun=45,
-                   moon=5,
-                   earth=10)
 
 taco3d_view = Taco3dView()
 
