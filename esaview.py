@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+import os
 import Tkinter as Tk
 import sys
 import cPickle as pickle
 
+import argparse
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
@@ -17,6 +19,32 @@ from Chandra.Time import DateTime
 from Ska.Matplotlib import plot_cxctime, cxctime2plotdate
 import Ska.Sun
 from Quaternion import Quat
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Run Earth Solid Angle viewer')
+    parser.add_argument('infile', type=str,
+                       help='Input data file root (e.g. FEB1411)')
+    args = parser.parse_args()
+    return args
+
+def get_input_data():
+    args = get_args()
+    infiles = [args.infile,
+               args.infile + '.pkl',
+               os.path.join(os.path.dirname(__file__), args.infile),
+               os.path.join(os.path.dirname(__file__), args.infile + '.pkl')]
+    for infile in infiles:
+        if os.path.exists(infile):
+            try:
+                print 'Reading {0}'.format(infile)
+                dat = pickle.load(open(infile))
+                return dat
+            except:
+                print "ERROR: failed to load data file {0}".format(infile)
+                raise
+    else:
+        print "ERROR: could not find input data file {0} or {0}.pkl".format(args.infile)
+        sys.exit(1)
 
 def get_date(idx_img):
     idx_img = int(idx_img)
@@ -289,8 +317,7 @@ class Slider(object):
             self.label_var.set(self.label_command(self.value.get()))
         
 # Load data and set some globals (hopefully minimize this later)
-filename = sys.argv[1]
-dat = pickle.load(open(filename))
+dat = get_input_data()
 times = dat['times']
 n_times = len(times)
 antisun = dat['antisun']
