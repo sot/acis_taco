@@ -143,8 +143,8 @@ class Taco3dView(object):
         self.ax.plot_surface(x - 250, y, z, shade=True, color='y')
         self.ax.plot_surface(x + 250, y, z, shade=True, color='r')
 
-        y = np.linspace(-359, 555, 2)
-        x = np.linspace(-200, 200, 2)
+        y = np.linspace(-241, 241, 2)
+        x = np.linspace(-216, 216, 2)
         xx, yy = np.meshgrid(x, y)
         zz = np.zeros_like(xx)
 
@@ -229,7 +229,6 @@ class TimePlot(object):
     def get_perigee_idxs(self):
         alt = self.orbit_rs
         local_min = (alt[2:] > alt[1:-1]) & (alt[1:-1] < alt[:-2])
-        print np.where(local_min)[0]
         return np.where(local_min)[0]
 
     def update(self, *args):
