@@ -76,9 +76,12 @@ def calc_earth_vis(p_chandra_eci,
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
+    
+    # Radiator size: 17 inches wide (X) by 19 inches long (Y), centered within
+    # SIM shaded structure.
 
-    rad_x = numpy.random.uniform(low=0.0, high=200, size=n_rays_to_earth // 2)
-    rad_y = numpy.random.uniform(low=-389.0, high=555.0, size=n_rays_to_earth // 2) + TACO_Y_OFF
+    rad_x = numpy.random.uniform(low=0.0, high=215.9, size=n_rays_to_earth // 2)  
+    rad_y = numpy.random.uniform(low=-241.3, high=241.3, size=n_rays_to_earth // 2) + TACO_Y_OFF
     rad_x = numpy.append(rad_x, -rad_x)
     rad_y = numpy.append(rad_y, rad_y)
     rad_z = numpy.zeros(n_rays_to_earth)
