@@ -235,7 +235,7 @@ def random_hemisphere(nsample):
 
 RAD_EARTH = 6371e3
 RAD_Z_OFF = 36
-TACO_X_OFF = 250
+TACO_X_OFF = 230
 TACO_Y_OFF = 689
 
 REFLECT_ATTEN=0.9
