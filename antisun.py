@@ -14,8 +14,9 @@ class AntiSun(object):
         self.img_pix_scale = img_pix_scale 
 
     def img2phys(self, x, y):
-        phys_x = (x - self.phys_x0) * self.img_pix_scale
-        phys_y = (y - self.phys_y0) * self.img_pix_scale
+        # rotate physical by 90 deg clockwise to get to image
+        phys_y = (x - self.phys_x0) * self.img_pix_scale
+        phys_x = -(y - self.phys_y0) * self.img_pix_scale
         return phys_x, phys_y
 
     def img2polar(self, x, y):
@@ -40,7 +41,7 @@ class AntiSun(object):
         sin_theta = sin(theta)
         eci_img = np.array([cos(theta),
                             sin(phi) * sin_theta,
-                            cos(phi) * sin_theta])  # OFLS uses -cos(phi)
+                            cos(phi) * sin_theta])
         self.q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
         eci = np.dot(self.q_x_to_antisun.transform, eci_img)
         return eci
@@ -56,6 +57,11 @@ class AntiSun(object):
         return ra, dec
 
     def eci2polar(self, eci, sun_eci):
+        """
+        phi = arctan2(sin(phi), cos(phi))
+            = arctan2(sin(theta) * sin(phi), sin(theta) * cos(phi))
+            = arctan2(y, z)
+        """
         q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
         eci_img = np.dot(q_x_to_antisun.transform.transpose(), eci)
         theta = arccos(eci_img[0])
@@ -73,8 +79,8 @@ class AntiSun(object):
         return phys_x, phys_y
 
     def phys2img(self, phys_x, phys_y):
-        x = phys_x / self.img_pix_scale + self.phys_x0
-        y = phys_y / self.img_pix_scale + self.phys_y0
+        x = phys_y / self.img_pix_scale + self.phys_x0
+        y = -phys_x / self.img_pix_scale + self.phys_y0
         return x, y
 
     def eci2img(self, eci, sun_eci):
@@ -111,6 +117,7 @@ if __name__ == '__main__':
     print eci
     print a.eci2phys(eci, sun_eci)
     print a.eci2polar(eci, sun_eci)
+    print a.eci2img(eci, sun_eci)
     print
 
 
