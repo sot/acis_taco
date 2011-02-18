@@ -94,15 +94,27 @@ def calc_earth_vis(p_chandra_eci,
                 ray_z = rays_to_earth[i, 2]
                 for refl in range(max_reflect + 1):
                     taco_x = TACO_X_OFF * (refl + 1)
+                    # Calculate dx: the number of times you need to stack the ray end to
+                    # end before it intersects the plane of the taco shade.
                     dx = (taco_x - rad_x) / ray_x
 
                     # Find if ray intersects shade within Y limits of the shade (0, N_TACO mm)
                     ray_taco_iys = int(rad_y + ray_y * dx)
                     y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
                     if y_ok:
-                        # See if ray is below the TACO_Z_EDGES curve
-                        ray_taco_zs = ray_z * dx
+                        # At this point the ray *might* not be blocked and could get to the Earth.
+                        # The word "y_ok" is probably confusing and a better name would have been
+                        # "ray_possibly_blocked", at which point we need to do the calculation to
+                        # see if ray is above or below the TACO_Z_EDGES curve.
+                        ray_taco_zs = ray_z * dx  # Stack "dx" copies of ray and get the z-intersection.
                         z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys]
+                        # z_ok means that the ray will escape (not be blocked) and get to the Earth.
+
+                    # The final verdict on whether the ray escapes, where either condition is enough:
+                    #  A) If (y_ok & z_ok) then it *might* have been blocked based on the y-intersection
+                    #     but then z-intersection with the shade plane was above the edge and it escaped.
+                    #  B) If (not y_ok) then the ray escaped "out the side" (y-intersection outside Y-limits
+                    #     of shade) and we didn't need to calculate the z-intersection.
                     y_z_ok = (y_ok & z_ok) | (not y_ok)
 
                     # Calculate the delta-visibility for good ray (cos(incidence_angle) = Z component)
