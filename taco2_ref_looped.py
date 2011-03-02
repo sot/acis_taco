@@ -102,10 +102,11 @@ def calc_earth_vis(p_chandra_eci,
                     ray_taco_iys = int(rad_y + ray_y * dx)
                     y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
                     if y_ok:
-                        # At this point the ray *might* not be blocked and could get to the Earth.
-                        # The word "y_ok" is probably confusing and a better name would have been
-                        # "ray_possibly_blocked", at which point we need to do the calculation to
-                        # see if ray is above or below the TACO_Z_EDGES curve.
+                        # At this point the ray *might* be blocked.  The word
+                        # "y_ok" is probably confusing and a better name would
+                        # have been "ray_possibly_blocked", at which point we
+                        # need to do the calculation to see if ray is above or
+                        # below the TACO_Z_EDGES curve.
                         ray_taco_zs = ray_z * dx  # Stack "dx" copies of ray and get the z-intersection.
                         z_ok = ray_taco_zs > TACO_Z_EDGES[ray_taco_iys]
                         # z_ok means that the ray will escape (not be blocked) and get to the Earth.

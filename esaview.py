@@ -354,6 +354,7 @@ matplotlib.rc("ytick", labelsize=10)
 root = Tk.Tk()
 root.wm_title("ESA viewer")
 root.bind("<Destroy>", lambda x: sys.exit)
+root.geometry('800x1000')
 
 # Top menu bar
 menu_frame = Tk.Frame(master=root)
@@ -365,10 +366,10 @@ taco3d_button.pack(side=Tk.LEFT)
 
 # Frame containing matplotlib figures
 mpl_figs_frame = Tk.Frame(master=root)
-mpl_figs_frame.pack(side=Tk.TOP, anchor='w')
+mpl_figs_frame.pack(side=Tk.TOP, anchor='w', fill=Tk.BOTH, expand=1)
 
 # Main image drawing frame (connected to Matplotlib canvas)
-fig = Figure(figsize=(8, 9), dpi=100)
+fig = Figure(figsize=(3, 4), dpi=100)
 illum_image = IllumImage(fig)
 time_plot = TimePlot(fig, [0.1, 0.05, 0.8, 0.15], times, ephem_xyzs)
 image_frame = Tk.Frame(master=mpl_figs_frame)

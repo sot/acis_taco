@@ -21,25 +21,25 @@ from antisun import AntiSun
 import taco2
 import cPickle as pickle
 
-from IPython.Debugger import Tracer; debug_here = Tracer()
-
 def get_options():
     from optparse import OptionParser
     parser = OptionParser()
     parser.set_defaults()
     parser.add_option("--start",
-                      default='2010:225:19:00:00',
-                      help="Start time")
+                      help="Start time (default=NOW")
     parser.add_option("--stop",
-                      default='2010:228:22:00:00',
-                      help="Stop time")
+                      help="Stop time (default=<NWEEK> weekly outputs")
     parser.add_option("--ngrid",
                       type='int',
                       default=50,
                       help="Number of grid points (one-axis) on map")
+    parser.add_option("--nweeks",
+                      type='int',
+                      default=3,
+                      help="Number of future weeks (default=3)")
     parser.add_option("--out",
-                      default='illum.pkl',
-                      help="Output file name")
+                      default="illum.pkl"
+                      help="Output file name (default=illum.pkl)")
     parser.add_option("--nproc",
                       type='int',
                       default=1,
@@ -131,7 +131,21 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 ephem_xyzs=ephem_xyzs,
                 )
 
+def get_day_of_week(date):
+    """Return day of week, where Monday is 0 and Sunday is 6"""
+    vals = [int(float(x)) for x in re.split(r'[-T:]', DateTime(date).fits)]
+    return datetime.datetime(*vals).weekday()
+
 if __name__ == '__main__':
     opt, args = get_options()
+    start = DateTime(opt.start)
+    if opt.stop is None:
+        day_of_week = get_day_of_week(start)
+        start = DateTime(start.secs + 86400 * (6 - day_of_week)
+        for week in range(opt.nweeks):
+            
+    else:
+        stop = DateTime(opt.stop).date
+        
     out = calc_perigee_map(opt.start, opt.stop, ngrid=opt.ngrid)
     pickle.dump(out, open(opt.out, 'w'))
