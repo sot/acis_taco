@@ -1,5 +1,7 @@
 syntax: glob
 
+*.pkl
+*.png
 out*
 20*
 doc/_*

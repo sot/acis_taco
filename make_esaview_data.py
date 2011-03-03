@@ -8,6 +8,7 @@ import sys, os
 import itertools
 import re
 import time
+import cPickle as pickle
 
 import numpy as np
 from multiprocessing import Process, Queue
@@ -16,10 +17,10 @@ import Quaternion
 import Ska.engarchive.fetch_sci as fetch
 import Ska.Sun
 import Ska.quatutil
-from antisun import AntiSun
+from Chandra.Time import DateTime
 
+from antisun import AntiSun
 import taco2
-import cPickle as pickle
 
 def get_options():
     from optparse import OptionParser
@@ -35,10 +36,10 @@ def get_options():
                       help="Number of grid points (one-axis) on map")
     parser.add_option("--nweeks",
                       type='int',
-                      default=3,
+                      default=4,
                       help="Number of future weeks (default=3)")
     parser.add_option("--out",
-                      default="illum.pkl"
+                      default="illum.pkl",
                       help="Output file name (default=illum.pkl)")
     parser.add_option("--nproc",
                       type='int',
@@ -131,21 +132,39 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 ephem_xyzs=ephem_xyzs,
                 )
 
-def get_day_of_week(date):
-    """Return day of week, where Monday is 0 and Sunday is 6"""
-    vals = [int(float(x)) for x in re.split(r'[-T:]', DateTime(date).fits)]
-    return datetime.datetime(*vals).weekday()
+def get_intervals(start, nweeks):
+    """Get ``nweeks`` worth of 9 day-intervals which go from Sunday 12am to
+    Tuesday 12am starting from the ``start`` date.  These nominally cover the
+    time for weekly loads.  Only return intervals for weeks which do not already
+    have an output file (i.e. don't re-compute existing weeks).
+    """
+    monday = start - start.mxDateTime.day_of_week  # Monday=0 .. Sunday=6
+    intervals = []
+    for week in range(opt.nweeks):
+        start = monday.day_start() - 1
+        stop = monday.day_start() + 8
+        # CALDATE: YYYYMonDD at hh:mm:ss.ss..
+        weekname = monday.caldate[4:9].upper() + monday.caldate[2:4]
+        outfile = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                               weekname + '.pkl')
+        if not os.path.exists(outfile):
+            intervals.append((start, stop, outfile))
+        else:
+            print weekname, 'already available - skipping'
+        monday = monday + 7
+
+    return intervals
 
 if __name__ == '__main__':
     opt, args = get_options()
+
     start = DateTime(opt.start)
     if opt.stop is None:
-        day_of_week = get_day_of_week(start)
-        start = DateTime(start.secs + 86400 * (6 - day_of_week)
-        for week in range(opt.nweeks):
-            
+        intervals = get_intervals(start, opt.nweeks)
     else:
-        stop = DateTime(opt.stop).date
+        intervals = [(start, opt.stop, opt.out)]
         
-    out = calc_perigee_map(opt.start, opt.stop, ngrid=opt.ngrid)
-    pickle.dump(out, open(opt.out, 'w'))
+    for start, stop, outfile in intervals:
+        print 'Calculating illums for', outfile
+        out = calc_perigee_map(start, stop, ngrid=opt.ngrid)
+        pickle.dump(out, open(outfile, 'w'))
