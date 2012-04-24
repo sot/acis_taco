@@ -1,0 +1,74 @@
+Attitude in body coords at 2010:237:19:50:00
+-------------------------------------------- 
+In [136]: att = [343.06149125747845, -33.9635405982336, 21.44521393848305]
+In [137]: pos = [6052012.4139944958, -806191.13214061758, -12380937.238411658]
+In [138]: q_att = Quat(att)
+In [139]: p_earth_body = np.dot(q_att.transform.transpose(), -np.array(pos))
+In [140]: p_earth_body
+Out[140]: array([-11913349.37481491,   1600513.79810546,   6787847.04879577])
+In [141]: p_earth_body / np.sqrt(np.sum(p_earth_body**2))
+Out[141]: array([-0.86300435,  0.1159414 ,  0.49171239])  
+
+Test case 1:  Earth at 50000 km in +Z, Pointing at RA, Dec, Roll = 0.0
+------------------------------------------------------------------------------
+p_earth_body = np.array([0, 0, 50000e3])
+orbit_xyz = -p_earth_body
+att = [0, 0, 0]
+
+In [45]: vis, illum, rays = taco.calc_earth_vis(orbit_xyz, att, ngrid=1000)
+In [46]: illum
+Out[46]: 0.050995049589613511
+
+
+In [51]: Chandra.acis_esa.earth_solid_angle(Quat(att), orbit_xyz)
+Out[51]: (0.051088071108541744, 0.0, 0.051088071108541744)
+
+
+Test case 2: Position from 2010:237:19:50:00
+------------------------------------------------------------------------------
+
+In [52]: p_earth_body = np.array([-11913349.37481491,   1600513.79810546,   6787847.04879577])
+In [53]: Chandra.acis_esa.earth_solid_angle(Quat(att), -p_earth_body)
+Out[53]: (0.32358086872649378, 0.18442285799134445, 0.50800372671783822)
+
+In [54]: vis, illum, rays = taco.calc_earth_vis(-p_earth_body, att, ngrid=1000)
+In [55]: illum
+Out[55]: 0.01219971346257717
+
+
+
+from Quaternion import Quat
+
+qt1 = fetch.MSID('aoattqt1', '2010:237:19:50:00', '2010:237:19:50:34')
+qt2 = fetch.MSID('aoattqt2', '2010:237:19:50:00', '2010:237:19:50:34')
+qt3 = fetch.MSID('aoattqt3', '2010:237:19:50:00', '2010:237:19:50:34')
+qt4 = fetch.MSID('aoattqt4', '2010:237:19:50:00', '2010:237:19:50:34')
+q = Quat([qt1.vals[0], qt2.vals[0], qt3.vals[0], qt4.vals[0]])
+q = Quat([qt1.vals[-1], qt2.vals[-1], qt3.vals[-1], qt4.vals[-1]])
+att = (q.ra, q.dec, q.roll)
+x = fetch.MSID('orbitephem1_x', '2010:237:19:45:00', '2010:237:19:59:10')
+y = fetch.MSID('orbitephem1_y', '2010:237:19:45:00', '2010:237:19:59:10')
+z = fetch.MSID('orbitephem1_z', '2010:237:19:45:00', '2010:237:19:59:10')
+pos = (x.vals[0], y.vals[0], z.vals[0])
+
+att = [343.06149125747845, -33.9635405982336, 21.44521393848305]
+pos = [6052012.4139944958, -806191.13214061758, -12380937.238411658]
+
+
+qt1 = fetch.MSID('aoattqt1', '2010:235:18:00:00', '2010:235:18:00:10')
+qt2 = fetch.MSID('aoattqt2', '2010:235:18:00:00', '2010:235:18:00:10')
+qt3 = fetch.MSID('aoattqt3', '2010:235:18:00:00', '2010:235:18:00:10')
+qt4 = fetch.MSID('aoattqt4', '2010:235:18:00:00', '2010:235:18:00:10')
+q = Quat([qt1.vals[0], qt2.vals[0], qt3.vals[0], qt4.vals[0]])
+att = (q.ra, q.dec, q.roll)
+x = fetch.MSID('orbitephem1_x', '2010:235:17:55:00', '2010:235:17:59:10')
+y = fetch.MSID('orbitephem1_y', '2010:235:17:55:00', '2010:235:17:59:10')
+z = fetch.MSID('orbitephem1_z', '2010:235:17:55:00', '2010:235:17:59:10')
+pos = (x.vals[0], y.vals[0], z.vals[0])
+
+att = [326.02890542746786, 19.518015009519473, 193.00076874447569]
+pos = [-13133090.71142933, 49184571.801667228, 100840190.93930224]
+
+
+
+
