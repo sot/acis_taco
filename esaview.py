@@ -16,9 +16,71 @@ from mpl_toolkits.mplot3d import Axes3D
 
 import Ska.quatutil
 from Chandra.Time import DateTime
-from Ska.Matplotlib import plot_cxctime, cxctime2plotdate
+import Ska.Matplotlib
+from Ska.Matplotlib import cxctime2plotdate
 import Ska.Sun
 from Quaternion import Quat
+
+def plot_cxctime(times, y, fmt='-b', fig=None, ax=None, yerr=None, xerr=None, tz=None,
+                 state_codes=None, interactive=True, **kwargs):
+    """Make a date plot where the X-axis values are in CXC time.  If no ``fig``
+    value is supplied then the current figure will be used (and created
+    automatically if needed).  If yerr or xerr is supplied, ``errorbar()`` will be
+    called and any additional keyword arguments will be passed to it.  Otherwise
+    any additional keyword arguments (e.g. ``fmt='b-'``) are passed through to
+    the ``plot()`` function.  Also see ``errorbar()`` for an explanation of the possible
+    forms of *yerr*/*xerr*.
+
+    If the ``state_codes`` keyword argument is provided then the y-axis ticks and
+    tick labels will be set accordingly.  The ``state_codes`` value must be a list
+    of (raw_count, state_code) tuples, and is normally set to ``msid.state_codes``
+    for an MSID object from fetch().
+
+    If the ``interactive`` keyword is True (default) then the plot will be redrawn
+    at the end and a GUI callback will be created which allows for on-the-fly
+    update of the date tick labels when panning and zooming interactively.  Set
+    this to False to improve the speed when making several plots.  This will likely
+    require issuing a plt.draw() or fig.canvas.draw() command at the end.
+
+    :param times: CXC time values for x-axis (date)
+    :param y: y values
+    :param fmt: plot format (default = '-b')
+    :param fig: pyplot figure object (optional)
+    :param yerr: error on y values, may be [ scalar | N, Nx1, or 2xN array-like ] 
+    :param xerr: error on x values in units of DAYS (may be [ scalar | N, Nx1, or 2xN array-like ] )
+    :param tz: timezone string
+    :param state_codes: list of (raw_count, state_code) tuples
+    :param interactive: use plot interactively (default=True, faster if False)
+    :param **kwargs: keyword args passed through to ``plot_date()`` or ``errorbar()``
+
+    :rtype: ticklocs, fig, ax = tick locations, figure, and axes object.
+    """
+
+    if fig is None:
+        fig = matplotlib.pyplot.gcf()
+
+    if ax is None:
+        ax = fig.gca()
+
+    if yerr is not None or xerr is not None:
+        ax.errorbar(cxctime2plotdate(times), y, yerr=yerr, xerr=xerr, fmt=fmt, **kwargs)
+        ax.xaxis_date(tz)
+    else:
+        ax.plot_date(cxctime2plotdate(times), y, fmt=fmt, **kwargs)
+    ticklocs = Ska.Matplotlib.set_time_ticks(ax)
+    fig.autofmt_xdate()
+
+    if state_codes is not None:
+        counts, codes = zip(*state_codes)
+        ax.yaxis.set_major_locator(Ska.Matplotlib.FixedLocator(counts))
+        ax.yaxis.set_major_formatter(Ska.Matplotlib.FixedFormatter(codes))
+
+    # If plotting interactively then show the figure and enable interactive resizing
+    if interactive and hasattr(fig, 'show'):
+        # fig.canvas.draw()
+        ax.callbacks.connect('xlim_changed', Ska.Matplotlib.remake_ticks)
+
+    return ticklocs, fig, ax
 
 def get_args():
     parser = argparse.ArgumentParser(description='Run Earth Solid Angle viewer')
