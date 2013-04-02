@@ -120,6 +120,7 @@ Functions
 .. autofunction:: make_radiator
 .. autofunction:: make_taco
 .. autofunction:: plane_line_intersect
+.. autofunction:: set_random_salt
 .. autofunction:: sphere_grid
 .. autofunction:: quat_x_v2
 

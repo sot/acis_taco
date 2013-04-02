@@ -2,15 +2,62 @@
 Define geometry for ACIS radiator and sunshade and perform raytrace
 calculation of Earth illumination on the radiator surface.
 """
-import os
+import hashlib
+import functools
 
-from itertools import repeat
 from Quaternion import Quat
 import numpy
 
+
+_RANDOM_SALT = 1
+
+
+def set_random_salt(salt):
+    """
+    Set the internal ``_RANDOM_SALT`` module attribute to ``salt``.
+
+    If set to ``None`` then the system random seed will be used everywhere and
+    the results of ``calc_earth_vis`` will not be deterministic (i.e. they will
+    vary slightly from one run to the next).
+
+    If set otherwise then the ``calc_earth_vis`` function will return precisely
+    the same results for the same input arguments and same value of ``salt``.
+    Different ``salt`` values will generate different random variations of the
+    results.  This is done by making an MD5 digest of random salt and the
+    function arguments and using this to generate an integer which sets the
+    random seed.
+
+    Any object type is allowed for ``salt``, the only thing that matters is
+    is that it has a unique string representation.
+
+    :param salt: any object with a unique str representation, repr(salt)
+    """
+    global _RANDOM_SALT
+    _RANDOM_SALT = salt
+
+
+def _make_reproducible(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if _RANDOM_SALT is not None:
+            md5 = hashlib.md5()
+            md5.update(repr(_RANDOM_SALT))
+            for val in args:
+                md5.update(repr(val))
+            for val in kwargs.values():
+                md5.update(repr(val))
+            digest = md5.hexdigest()
+            seed = int(digest[:7], 16)
+            numpy.random.seed(seed)
+
+        out = func(*args, **kwargs)
+        return out
+    return wrapper
+
+
 def make_taco():
     """Define geometry for ACIS radiator sun-shade (aka the space taco) in mm."""
-    y_pnts = numpy.array([-689.0,  -333,  -63,  553, 689]) + TACO_Y_OFF
+    y_pnts = numpy.array([-689.0, -333, -63, 553, 689]) + TACO_Y_OFF
     z_pnts = numpy.array([0.0, 777, 777, 421, 0]) - RAD_Z_OFF
 
     y_edge = numpy.arange(max(y_pnts))
@@ -18,6 +65,8 @@ def make_taco():
 
     return z_edge
 
+
+@_make_reproducible
 def calc_earth_vis(p_chandra_eci,
                    chandra_att,
                    max_reflect=10):
@@ -37,6 +86,7 @@ def calc_earth_vis(p_chandra_eci,
     
     :returns: relative visibility, total illumination, projected rays
     """
+
 
     # Calculate position of earth in ECI and Chandra body coords.  
     q_att = Quat(chandra_att) 
@@ -203,6 +253,8 @@ def sphere_grid(ngrid, open_angle):
     # (x, y, z) = zip(*grid)  (python magic)
     return numpy.array(grid), grid_area
 
+
+@_make_reproducible
 def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     """Calculate approximately uniform spherical grid of rays containing
     ``ngrid`` points and extending over the opening angle ``open_angle``
@@ -224,6 +276,8 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
 
     return SPHERE_XYZ[idx_sphere, :], grid_area
     
+
+@_make_reproducible
 def random_hemisphere(nsample):
     x = numpy.random.uniform(low=0.3, high=1.0, size=nsample)
     x.sort()                    # x is not random
@@ -233,12 +287,13 @@ def random_hemisphere(nsample):
     y = r * numpy.sin(t)
     return numpy.array([x, y, z]).transpose()
 
+
 RAD_EARTH = 6371e3
 RAD_Z_OFF = 36
 TACO_X_OFF = 230
 TACO_Y_OFF = 689
 
-REFLECT_ATTEN=0.9
+REFLECT_ATTEN = 0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
 
