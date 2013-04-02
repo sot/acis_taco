@@ -47,7 +47,7 @@ def _make_reproducible(func):
             for val in kwargs.values():
                 md5.update(repr(val))
             digest = md5.hexdigest()
-            seed = int(digest[:12], 16)
+            seed = int(digest[:7], 16)
             numpy.random.seed(seed)
 
         out = func(*args, **kwargs)
