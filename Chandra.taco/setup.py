@@ -10,7 +10,6 @@ setup(name='Chandra.taco',
       version=version,
       zip_safe=False,
       py_modules=['Chandra.taco'],
-      namespace_packages=['Chandra'],
       packages=['Chandra', 'Chandra.taco'],
       package_dir={'Chandra':'Chandra'},
       )
