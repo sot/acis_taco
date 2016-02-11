@@ -140,7 +140,7 @@ def get_intervals(start, nweeks):
     """
     monday = start - start.mxDateTime.day_of_week  # Monday=0 .. Sunday=6
     intervals = []
-    for week in range(opt.nweeks):
+    for week in range(nweeks):
         start = monday.day_start() - 1
         stop = monday.day_start() + 8
         # CALDATE: YYYYMonDD at hh:mm:ss.ss..
