@@ -139,7 +139,7 @@ def get_intervals(start, nweeks):
     time for weekly loads.  Only return intervals for weeks which do not already
     have an output file (i.e. don't re-compute existing weeks).
     """
-    monday = start - (date.fromtimestamp(start.unix).isoweekday() - 1)  # isoweekday Monday=1 .. Sunday=7
+    monday = start - date.fromtimestamp(start.unix).weekday()   # weekday() Monday=0 .. Sunday=6
     intervals = []
     for week in range(nweeks):
         start = monday.day_start() - 1
