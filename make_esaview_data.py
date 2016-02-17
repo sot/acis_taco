@@ -8,6 +8,7 @@ import sys, os
 import itertools
 import re
 import time
+from datetime import date
 import cPickle as pickle
 
 import numpy as np
@@ -138,9 +139,9 @@ def get_intervals(start, nweeks):
     time for weekly loads.  Only return intervals for weeks which do not already
     have an output file (i.e. don't re-compute existing weeks).
     """
-    monday = start - start.mxDateTime.day_of_week  # Monday=0 .. Sunday=6
+    monday = start - date.fromtimestamp(start.unix).weekday()   # weekday() Monday=0 .. Sunday=6
     intervals = []
-    for week in range(opt.nweeks):
+    for week in range(nweeks):
         start = monday.day_start() - 1
         stop = monday.day_start() + 8
         # CALDATE: YYYYMonDD at hh:mm:ss.ss..
