@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 import taco
 import numpy
 import Chandra.acis_esa

@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 import numpy as np
 from numpy import sin, cos, radians, arctan2, sqrt, arccos, degrees
 import Ska.quatutil

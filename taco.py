@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
 Define geometry for ACIS radiator and sunshade and perform raytrace
 calculation of Earth illumination on the radiator surface.

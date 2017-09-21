@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 if 0:
     v_ras = []
     v_decs = []

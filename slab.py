@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 def make_slab():
     x = [0.1,    0.1,   -1.0, -1.0]
     y = [10.0,  -10.,    10,   -10 ]
