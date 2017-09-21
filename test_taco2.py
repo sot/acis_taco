@@ -1,4 +1,5 @@
 #!/usr/bin/env /proj/sot/ska/bin/python
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 import sys
 sys.path.append('/proj/sot/ska/share/taco')
 

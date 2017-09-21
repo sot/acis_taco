@@ -1,4 +1,5 @@
 #!/usr/bin/env /proj/sot/ska/bin/python
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
 Calculate Earth illumination on the ACIS radiatiator over a specified interval
 of time.

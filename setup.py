@@ -1,3 +1,4 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 from distutils.core import setup
 setup(name='taco',
       version='0.1.1',
