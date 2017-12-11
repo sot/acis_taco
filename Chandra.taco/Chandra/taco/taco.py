@@ -42,11 +42,11 @@ def _make_reproducible(func):
     def wrapper(*args, **kwargs):
         if _RANDOM_SALT is not None:
             md5 = hashlib.md5()
-            md5.update(repr(_RANDOM_SALT))
+            md5.update(repr(_RANDOM_SALT).encode("utf8"))
             for val in args:
-                md5.update(repr(val))
+                md5.update(repr(val).encode("utf8"))
             for val in kwargs.values():
-                md5.update(repr(val))
+                md5.update(repr(val).encode("utf8"))
             digest = md5.hexdigest()
             seed = int(digest[:7], 16)
             numpy.random.seed(seed)
@@ -298,6 +298,6 @@ REFLECT_ATTEN = 0.9
 TACO_Z_EDGES = make_taco()
 N_TACO = len(TACO_Z_EDGES)
 
-N_SPHERE = 1.5e6
+N_SPHERE = 1500000
 SPHERE_XYZ = random_hemisphere(N_SPHERE)
 SPHERE_X = SPHERE_XYZ[:, 0].copy()
