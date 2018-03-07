@@ -3,7 +3,6 @@ from __future__ import print_function
 import numpy as np
 
 import Chandra.taco
-print(Chandra.taco.__file__)
 import Chandra.taco as taco
 
 p_chandra_eci = np.array([5000., 5000., 0.]) * 1000
