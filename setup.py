@@ -1,18 +1,15 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from setuptools import setup
+from taco.version import version
 
-from Chandra.taco.version import version
-
-setup(name='Chandra.taco',
+setup(name='taco',
       author = 'Tom Aldcroft',
       description='ACIS Earth Solid Angle package',
       author_email = 'aldcroft@head.cfa.harvard.edu',
       url = 'http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/taco/',
       version=version,
       zip_safe=False,
-      py_modules=['Chandra.taco'],
-      packages=['Chandra', 'Chandra.taco'],
-      package_dir={'Chandra':'Chandra'},
+      packages=['taco'],
       )
 
 

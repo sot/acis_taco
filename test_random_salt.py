@@ -1,9 +1,8 @@
 from __future__ import print_function
+
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 import numpy as np
-
-import Chandra.taco
-import Chandra.taco as taco
+import taco
 
 p_chandra_eci = np.array([5000., 5000., 0.]) * 1000
 att = [0, 90, 0]
