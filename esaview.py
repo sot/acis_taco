@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-
+from __future__ import print_function
 import os
 import Tkinter as Tk
 import sys
@@ -99,14 +99,14 @@ def get_input_data():
     for infile in infiles:
         if os.path.exists(infile):
             try:
-                print 'Reading {0}'.format(infile)
+                print('Reading {0}'.format(infile))
                 dat = pickle.load(open(infile))
                 return dat
             except:
-                print "ERROR: failed to load data file {0}".format(infile)
+                print("ERROR: failed to load data file {0}".format(infile))
                 raise
     else:
-        print "ERROR: could not find input data file {0} or {0}.pkl".format(args.infile)
+        print("ERROR: could not find input data file {0} or {0}.pkl".format(args.infile))
         sys.exit(1)
 
 def get_date(idx_img):

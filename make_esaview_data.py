@@ -4,7 +4,7 @@
 Calculate Earth illumination on the ACIS radiatiator over a specified interval
 of time.
 """
-
+from __future__ import print_function
 import sys, os
 import itertools
 import re
@@ -79,7 +79,7 @@ def get_antisun_grid(ngrid=10):
 
 def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=50):
     # Get orbital ephemeris in requested time range
-    print ('Fetching ephemeris')
+    print('Fetching ephemeris')
     objs = ('orbit', 'lunar', 'solar')
     axes = ('x', 'y', 'z')
     msids = ['{0}ephem0_{1}'.format(obj, axis)
@@ -111,7 +111,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
         att_vecs = antisun.img2eci(xs, ys, sun_eci)
         ras, decs = Ska.quatutil.eci2radec(att_vecs)
         illum_map = np.zeros((ngrid, ngrid), dtype=np.float32)
-        print i_ephem, n_ephem, ephem_xyz
+        print(i_ephem, n_ephem, ephem_xyz)
         for iy in range(ngrid):
             for ix in range(ngrid):
                 i_vec = iy * ngrid + ix
@@ -152,7 +152,7 @@ def get_intervals(start, nweeks):
         if not os.path.exists(outfile):
             intervals.append((start, stop, outfile))
         else:
-            print weekname, 'already available - skipping'
+            print(weekname, 'already available - skipping')
         monday = monday + 7
 
     return intervals
@@ -167,6 +167,6 @@ if __name__ == '__main__':
         intervals = [(start, opt.stop, opt.out)]
         
     for start, stop, outfile in intervals:
-        print 'Calculating illums for', outfile
+        print('Calculating illums for', outfile)
         out = calc_perigee_map(start, stop, ngrid=opt.ngrid)
         pickle.dump(out, open(outfile, 'w'))
