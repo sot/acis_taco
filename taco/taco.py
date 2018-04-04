@@ -8,10 +8,11 @@ import functools
 
 from Quaternion import Quat
 import numpy
+from numpy.random import RandomState
 
+prng = RandomState()
 
 _RANDOM_SALT = 1
-
 
 def set_random_salt(salt):
     """
@@ -49,7 +50,7 @@ def _make_reproducible(func):
                 md5.update(repr(val).encode("utf8"))
             digest = md5.hexdigest()
             seed = int(digest[:7], 16)
-            numpy.random.seed(seed)
+            prng.seed(seed)
 
         out = func(*args, **kwargs)
         return out
@@ -131,8 +132,8 @@ def calc_earth_vis(p_chandra_eci,
     # Radiator size: 17 inches wide (X) by 19 inches long (Y), centered within
     # SIM shaded structure.
 
-    rad_x = numpy.random.uniform(low=0.0, high=215.9, size=n_rays_to_earth // 2)  
-    rad_y = numpy.random.uniform(low=-241.3, high=241.3, size=n_rays_to_earth // 2) + TACO_Y_OFF
+    rad_x = prng.uniform(low=0.0, high=215.9, size=n_rays_to_earth // 2)
+    rad_y = prng.uniform(low=-241.3, high=241.3, size=n_rays_to_earth // 2) + TACO_Y_OFF
     rad_x = numpy.append(rad_x, -rad_x)
     rad_y = numpy.append(rad_y, rad_y)
     rad_z = numpy.zeros(n_rays_to_earth)
@@ -273,16 +274,16 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
         idx_xmin = N_SPHERE - min_ngrid
 
     ngrid = int(min_ngrid + (max_ngrid-min_ngrid) * (1-xmin))
-    idx_sphere = numpy.random.randint(idx_xmin, N_SPHERE, ngrid)
+    idx_sphere = prng.randint(idx_xmin, N_SPHERE, ngrid)
 
     return SPHERE_XYZ[idx_sphere, :], grid_area
     
 
 @_make_reproducible
 def random_hemisphere(nsample):
-    x = numpy.random.uniform(low=0.3, high=1.0, size=nsample)
+    x = prng.uniform(low=0.3, high=1.0, size=nsample)
     x.sort()                    # x is not random
-    t = 2*numpy.pi * numpy.random.random(nsample)
+    t = 2*numpy.pi * prng.random(nsample)
     r = numpy.sqrt(1-x**2)
     z = r * numpy.cos(t)
     y = r * numpy.sin(t)
