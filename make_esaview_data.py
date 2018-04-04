@@ -22,7 +22,7 @@ import Ska.quatutil
 from Chandra.Time import DateTime
 
 from antisun import AntiSun
-import taco2
+import acis_taco
 
 def get_options():
     from optparse import OptionParser
@@ -62,7 +62,7 @@ def calc_illums(queue, chandra_ecis, att):
     """
     illums = []
     for chandra_eci in chandra_ecis:
-        vis, illum, rays = taco2.calc_earth_vis(chandra_eci, att, max_reflect=5)
+        vis, illum, rays = acis_taco.calc_earth_vis(chandra_eci, att, max_reflect=5)
         illums.append(sum(illum))
     queue.put(illums)
 
@@ -118,7 +118,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 if antisun_pitches[i_vec] < 135:
                     ra, dec = ras[i_vec], decs[i_vec]
                     roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
-                    _, att_illums, _ = taco2.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
+                    _, att_illums, _ = acis_taco.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
                     illum = sum(att_illums)
                 else:
                     illum = 0.0

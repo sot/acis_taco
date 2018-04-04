@@ -9,4 +9,4 @@ orbit*.fits
 rad_*
 *.pyc
 build
-taco.egg-info
+acis_taco.egg-info

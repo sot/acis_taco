@@ -1,4 +1,4 @@
-.. taco documentation master file, created by
+.. acis_taco documentation master file, created by
    sphinx-quickstart on Mon Jun 15 16:40:44 2009.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -9,11 +9,11 @@ Calculate Earth illumination of the ACIS radiator.
 
 The key components are:
 
-``taco.py`` 
+``acis_taco.py``
   Module which defines the physical geometry and does the raytrace calculations
 
 ``acis_rad_illum.py``
-  Application program using the ``taco`` module to calculate illumination
+  Application program using the ``acis_taco`` module to calculate illumination
   over a time range using a supplied orbital ephemeris file.  This code generates
   an output plot and data file and can be used to make gif movies of visibility.
 
@@ -21,8 +21,8 @@ Installation
 ============
 Untar the package tar file in a working directory::
 
-  tar zxvf /proj/sot/ska/export/taco-<version>.tar.gz
-  cd taco-<version>
+  tar zxvf /proj/sot/ska/export/acis_taco-<version>.tar.gz
+  cd acis_taco-<version>
 
 acis_rad_illum.py
 ===================================
@@ -109,10 +109,10 @@ This should give a movie like below (except this was made with -loop 1 so refres
 
 Note: command line options can use the "=" (equals sign) or not depending on your preference.
 
-:mod:`taco`
+:mod:`acis_taco`
 =====================
 
-.. automodule:: taco
+.. automodule:: acis_taco
 
 Functions
 ----------
