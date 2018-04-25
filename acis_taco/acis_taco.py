@@ -45,9 +45,9 @@ def _make_reproducible(func):
             md5 = hashlib.md5()
             md5.update(repr(_RANDOM_SALT).encode("utf8"))
             for val in args:
-                md5.update(numpy.array_str(numpy.array(val, ndmin=1), precision=6).encode("utf8"))
+                md5.update(numpy.array_str(numpy.array(val, ndmin=1), precision=10).encode("utf8"))
             for val in kwargs.values():
-                md5.update(numpy.array_str(numpy.array(val, ndmin=1), precision=6).encode("utf8"))
+                md5.update(numpy.array_str(numpy.array(val, ndmin=1), precision=10).encode("utf8"))
             digest = md5.hexdigest()
             seed = int(digest[:7], 16)
             prng.seed(seed)
