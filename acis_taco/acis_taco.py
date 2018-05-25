@@ -38,7 +38,7 @@ def set_random_salt(salt):
     _RANDOM_SALT = salt
 
 def _encode_data(val):
-    return np.array_str(np.array(val, ndmin=1), precision=10).encode("utf8")
+    return np.array_str(np.array(val, ndmin=1)).encode("utf8")
 
 def _make_reproducible(func):
     @functools.wraps(func)
