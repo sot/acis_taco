@@ -21,7 +21,6 @@ import Ska.Sun
 import Ska.quatutil
 from Chandra.Time import DateTime
 
-from antisun import AntiSun
 import acis_taco
 
 def get_options():
@@ -70,7 +69,7 @@ def calc_illums(queue, chandra_ecis, att):
 def get_antisun_grid(ngrid=10):
     xy0 = ngrid / 2.0
     max_pitch = 135.0
-    antisun = AntiSun(xy0, xy0, max_pitch * 2 / ngrid)
+    antisun = acis_taco.AntiSun(xy0, xy0, max_pitch * 2 / ngrid)
     x = np.arange(ngrid)[np.newaxis, :] + np.zeros((ngrid, ngrid))
     x = x.flatten()
     y = np.arange(ngrid)[:, np.newaxis] + np.zeros((ngrid, ngrid))
