@@ -12,9 +12,11 @@ import os
 scripts = glob.glob("scripts/*")
 
 if "--user" not in sys.argv:
-    data_files_path = os.path.join(sys.prefix, "share", "acis_taco")
-    data_files = [(data_files_path, ['share/esaview.py',
-                                     'share/make_esaview_data.py'])]
+    share_path = os.path.join(sys.prefix, "share", "acis_taco")
+    data_path = os.path.join(sys.prefix, "data", "acis_taco")
+
+    data_files = [(share_path, ['share/esaview.py', 'share/make_esaview_data.py']),
+                  (data_path, ['task_schedule.cfg', 'task_schedule_occ.cfg'])]
 else:
     data_files = None
 

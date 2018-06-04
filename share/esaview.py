@@ -87,6 +87,8 @@ def get_args():
     parser = argparse.ArgumentParser(description='Run Earth Solid Angle viewer')
     parser.add_argument('infile', type=str,
                        help='Input data file root (e.g. FEB1411)')
+    parser.add_argument('--data-root', type=str, default='$SKA/data/acis_taco',
+                        help="Data root (default='$SKA/data/acis_taco')")
     args = parser.parse_args()
     return args
 
@@ -94,8 +96,8 @@ def get_input_data():
     args = get_args()
     infiles = [args.infile,
                args.infile + '.pkl',
-               os.path.join(os.path.dirname(__file__), args.infile),
-               os.path.join(os.path.dirname(__file__), args.infile + '.pkl')]
+               os.path.join(args.data_root, args.infile),
+               os.path.join(args.data_root, args.infile + '.pkl')]
     for infile in infiles:
         if os.path.exists(infile):
             try:

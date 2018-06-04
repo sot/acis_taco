@@ -45,6 +45,9 @@ def get_options():
                       action='store_true',
                       default=False,
                       help="Print verbose output")
+    parser.add_option("--data-root",
+                      default='.',
+                      help="Data root (default='.')")
 
     (opt, args) = parser.parse_args()
     return (opt, args)
@@ -128,7 +131,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 ephem_xyzs=ephem_xyzs,
                 )
 
-def get_intervals(start, nweeks):
+def get_intervals(start, nweeks, data_root):
     """Get ``nweeks`` worth of 9 day-intervals which go from Sunday 12am to
     Tuesday 12am starting from the ``start`` date.  These nominally cover the
     time for weekly loads.  Only return intervals for weeks which do not already
@@ -141,13 +144,13 @@ def get_intervals(start, nweeks):
         stop = monday.day_start() + 8
         # CALDATE: YYYYMonDD at hh:mm:ss.ss..
         weekname = monday.caldate[4:9].upper() + monday.caldate[2:4]
-        outfile = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+        outfile = os.path.join(os.path.abspath(data_root),
                                weekname + '.pkl')
         if not os.path.exists(outfile):
             intervals.append((start, stop, outfile))
         else:
             print(weekname, 'already available - skipping')
-        monday = monday + 7
+        monday += 7
 
     return intervals
 
@@ -156,7 +159,7 @@ if __name__ == '__main__':
 
     start = DateTime(opt.start)
     if opt.stop is None:
-        intervals = get_intervals(start, opt.nweeks)
+        intervals = get_intervals(start, opt.nweeks, opt.data_root)
     else:
         intervals = [(start, opt.stop, opt.out)]
 
