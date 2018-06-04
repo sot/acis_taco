@@ -5,6 +5,18 @@ try:
     from testr.setup_helper import cmdclass
 except ImportError:
     cmdclass = {}
+import glob
+import sys
+import os
+
+scripts = glob.glob("scripts/*")
+
+if "--user" not in sys.argv:
+    data_files_path = os.path.join(sys.prefix, "share", "acis_taco")
+    data_files = [(data_files_path, ['share/esaview.py',
+                                     'share/make_esaview_data.py'])]
+else:
+    data_files = None
 
 setup(name='acis_taco',
       author='Tom Aldcroft',
@@ -14,7 +26,10 @@ setup(name='acis_taco',
       version=__version__,
       zip_safe=False,
       packages=['acis_taco'],
+      scripts=scripts,
+      include_package_data=True,
       cmdclass=cmdclass,
+      data_files=data_files,
       )
 
 

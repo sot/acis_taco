@@ -5,20 +5,15 @@ Calculate Earth illumination on the ACIS radiator over a specified interval
 of time.
 """
 from __future__ import print_function
-import sys, os
-import itertools
-import re
-import time
+
+import os
 from datetime import date
-import cPickle as pickle
 
-import numpy as np
-from multiprocessing import Process, Queue
-
-import Quaternion
-import Ska.engarchive.fetch_sci as fetch
 import Ska.Sun
+import Ska.engarchive.fetch_sci as fetch
 import Ska.quatutil
+import cPickle as pickle
+import numpy as np
 from Chandra.Time import DateTime
 
 import acis_taco
@@ -50,7 +45,7 @@ def get_options():
                       action='store_true',
                       default=False,
                       help="Print verbose output")
-    
+
     (opt, args) = parser.parse_args()
     return (opt, args)
 
@@ -124,7 +119,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 illum_map[iy, ix] = illum
         illum_idxs.append(i_ephem)
         illum_maps.append(illum_map)
-        
+
     # debug_here()
     return dict(illums=np.array(illum_maps),
                 illum_idxs=np.array(illum_idxs),
@@ -164,7 +159,7 @@ if __name__ == '__main__':
         intervals = get_intervals(start, opt.nweeks)
     else:
         intervals = [(start, opt.stop, opt.out)]
-        
+
     for start, stop, outfile in intervals:
         print('Calculating illums for', outfile)
         out = calc_perigee_map(start, stop, ngrid=opt.ngrid)

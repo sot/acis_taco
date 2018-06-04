@@ -347,7 +347,7 @@ class SolarSystemObject(object):
         # Disable regions that are currently visible but not in next view
         for idx in self.idxs_visible - idxs:
             self.regions[idx]['line'].set_visible(False)
-            
+
         for idx in idxs - self.idxs_visible:
             region = self.regions[idx]
             try:
