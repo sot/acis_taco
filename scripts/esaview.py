@@ -87,7 +87,8 @@ def get_args():
     parser = argparse.ArgumentParser(description='Run Earth Solid Angle viewer')
     parser.add_argument('infile', type=str,
                        help='Input data file root (e.g. FEB1411)')
-    parser.add_argument('--data-root', type=str, default='$SKA/data/acis_taco',
+    parser.add_argument('--data-root', type=str,
+                        default=os.path.join(os.environ['SKA'], 'data', 'acis_taco'),
                         help="Data root (default='$SKA/data/acis_taco')")
     args = parser.parse_args()
     return args
