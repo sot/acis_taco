@@ -13,18 +13,16 @@ scripts = glob.glob("scripts/*")
 
 if "--user" not in sys.argv:
     share_path = os.path.join(sys.prefix, "share", "acis_taco")
-    data_path = os.path.join(sys.prefix, "data", "acis_taco")
-
-    data_files = [(share_path, ['share/make_esaview_data.py']),
-                  (data_path, ['task_schedule.cfg', 'task_schedule_occ.cfg'])]
+    data_files = [(share_path, ['share/make_esaview_data.py',
+                                'task_schedule.cfg', 'task_schedule_occ.cfg'])]
 else:
     data_files = None
 
 setup(name='acis_taco',
       author='Tom Aldcroft',
       description='ACIS Earth Solid Angle package',
-      author_email='aldcroft@head.cfa.harvard.edu',
-      url='http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/taco/',
+      author_email='taldcroft@cfa.harvard.edu',
+      url='http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/acis_taco/',
       version=__version__,
       zip_safe=False,
       packages=['acis_taco', 'acis_taco.tests'],
