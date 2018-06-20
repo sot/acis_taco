@@ -1,4 +1,4 @@
-#!/usr/bin/env /proj/sot/ska/bin/python
+#!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
 Calculate Earth illumination on the ACIS radiator over a specified interval
@@ -12,7 +12,7 @@ from datetime import date
 import Ska.Sun
 import Ska.engarchive.fetch_sci as fetch
 import Ska.quatutil
-import cPickle as pickle
+import six.moves.cPickle as pickle
 import numpy as np
 from Chandra.Time import DateTime
 
@@ -166,4 +166,4 @@ if __name__ == '__main__':
     for start, stop, outfile in intervals:
         print('Calculating illums for', outfile)
         out = calc_perigee_map(start, stop, ngrid=opt.ngrid)
-        pickle.dump(out, open(outfile, 'w'))
+        pickle.dump(out, open(outfile, 'wb'), protocol=2)

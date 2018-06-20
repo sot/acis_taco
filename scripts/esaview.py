@@ -2,9 +2,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import print_function
 import os
-import Tkinter as Tk
+import six.moves.tkinter as Tk
+import six.moves.cPickle as pickle
 import sys
-import cPickle as pickle
 
 import argparse
 import numpy as np
@@ -102,7 +102,7 @@ def get_input_data():
         if os.path.exists(infile):
             try:
                 print('Reading {0}'.format(infile))
-                dat = pickle.load(open(infile))
+                dat = pickle.load(open(infile, 'rb'))
                 return dat
             except:
                 print("ERROR: failed to load data file {0}".format(infile))

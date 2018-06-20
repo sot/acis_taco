@@ -15,7 +15,7 @@ if "--user" not in sys.argv:
     share_path = os.path.join(sys.prefix, "share", "acis_taco")
     data_path = os.path.join(sys.prefix, "data", "acis_taco")
 
-    data_files = [(share_path, ['share/esaview.py', 'share/make_esaview_data.py']),
+    data_files = [(share_path, ['share/make_esaview_data.py']),
                   (data_path, ['task_schedule.cfg', 'task_schedule_occ.cfg'])]
 else:
     data_files = None
@@ -27,11 +27,12 @@ setup(name='acis_taco',
       url='http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/taco/',
       version=__version__,
       zip_safe=False,
-      packages=['acis_taco'],
+      packages=['acis_taco', 'acis_taco.tests'],
       scripts=scripts,
       include_package_data=True,
       cmdclass=cmdclass,
       data_files=data_files,
+      tests_require=['pytest'],
       )
 
 
