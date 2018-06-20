@@ -1,28 +1,22 @@
-#!/usr/bin/env /proj/sot/ska/bin/python
+#!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
-Calculate Earth illumination on the ACIS radiatiator over a specified interval
+Calculate Earth illumination on the ACIS radiator over a specified interval
 of time.
 """
+from __future__ import print_function
 
-import sys, os
-import itertools
-import re
-import time
+import os
 from datetime import date
-import cPickle as pickle
 
-import numpy as np
-from multiprocessing import Process, Queue
-
-import Quaternion
-import Ska.engarchive.fetch_sci as fetch
 import Ska.Sun
+import Ska.engarchive.fetch_sci as fetch
 import Ska.quatutil
+import six.moves.cPickle as pickle
+import numpy as np
 from Chandra.Time import DateTime
 
-from antisun import AntiSun
-import taco2
+import acis_taco
 
 def get_options():
     from optparse import OptionParser
@@ -51,7 +45,10 @@ def get_options():
                       action='store_true',
                       default=False,
                       help="Print verbose output")
-    
+    parser.add_option("--data-root",
+                      default='.',
+                      help="Data root (default='.')")
+
     (opt, args) = parser.parse_args()
     return (opt, args)
 
@@ -62,7 +59,7 @@ def calc_illums(queue, chandra_ecis, att):
     """
     illums = []
     for chandra_eci in chandra_ecis:
-        vis, illum, rays = taco2.calc_earth_vis(chandra_eci, att, max_reflect=5)
+        vis, illum, rays = acis_taco.calc_earth_vis(chandra_eci, att, max_reflect=5)
         illums.append(sum(illum))
     queue.put(illums)
 
@@ -70,7 +67,7 @@ def calc_illums(queue, chandra_ecis, att):
 def get_antisun_grid(ngrid=10):
     xy0 = ngrid / 2.0
     max_pitch = 135.0
-    antisun = AntiSun(xy0, xy0, max_pitch * 2 / ngrid)
+    antisun = acis_taco.AntiSun(xy0, xy0, max_pitch * 2 / ngrid)
     x = np.arange(ngrid)[np.newaxis, :] + np.zeros((ngrid, ngrid))
     x = x.flatten()
     y = np.arange(ngrid)[:, np.newaxis] + np.zeros((ngrid, ngrid))
@@ -79,7 +76,7 @@ def get_antisun_grid(ngrid=10):
 
 def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=50):
     # Get orbital ephemeris in requested time range
-    print ('Fetching ephemeris')
+    print('Fetching ephemeris')
     objs = ('orbit', 'lunar', 'solar')
     axes = ('x', 'y', 'z')
     msids = ['{0}ephem0_{1}'.format(obj, axis)
@@ -111,21 +108,21 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
         att_vecs = antisun.img2eci(xs, ys, sun_eci)
         ras, decs = Ska.quatutil.eci2radec(att_vecs)
         illum_map = np.zeros((ngrid, ngrid), dtype=np.float32)
-        print i_ephem, n_ephem, ephem_xyz
+        print(i_ephem, n_ephem, ephem_xyz)
         for iy in range(ngrid):
             for ix in range(ngrid):
                 i_vec = iy * ngrid + ix
                 if antisun_pitches[i_vec] < 135:
                     ra, dec = ras[i_vec], decs[i_vec]
                     roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
-                    _, att_illums, _ = taco2.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
+                    _, att_illums, _ = acis_taco.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
                     illum = sum(att_illums)
                 else:
                     illum = 0.0
                 illum_map[iy, ix] = illum
         illum_idxs.append(i_ephem)
         illum_maps.append(illum_map)
-        
+
     # debug_here()
     return dict(illums=np.array(illum_maps),
                 illum_idxs=np.array(illum_idxs),
@@ -134,7 +131,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 ephem_xyzs=ephem_xyzs,
                 )
 
-def get_intervals(start, nweeks):
+def get_intervals(start, nweeks, data_root):
     """Get ``nweeks`` worth of 9 day-intervals which go from Sunday 12am to
     Tuesday 12am starting from the ``start`` date.  These nominally cover the
     time for weekly loads.  Only return intervals for weeks which do not already
@@ -147,13 +144,13 @@ def get_intervals(start, nweeks):
         stop = monday.day_start() + 8
         # CALDATE: YYYYMonDD at hh:mm:ss.ss..
         weekname = monday.caldate[4:9].upper() + monday.caldate[2:4]
-        outfile = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+        outfile = os.path.join(os.path.abspath(data_root),
                                weekname + '.pkl')
         if not os.path.exists(outfile):
             intervals.append((start, stop, outfile))
         else:
-            print weekname, 'already available - skipping'
-        monday = monday + 7
+            print(weekname, 'already available - skipping')
+        monday += 7
 
     return intervals
 
@@ -162,11 +159,11 @@ if __name__ == '__main__':
 
     start = DateTime(opt.start)
     if opt.stop is None:
-        intervals = get_intervals(start, opt.nweeks)
+        intervals = get_intervals(start, opt.nweeks, opt.data_root)
     else:
         intervals = [(start, opt.stop, opt.out)]
-        
+
     for start, stop, outfile in intervals:
-        print 'Calculating illums for', outfile
+        print('Calculating illums for', outfile)
         out = calc_perigee_map(start, stop, ngrid=opt.ngrid)
-        pickle.dump(out, open(outfile, 'w'))
+        pickle.dump(out, open(outfile, 'wb'), protocol=2)

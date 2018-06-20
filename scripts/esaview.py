@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-
+from __future__ import print_function
 import os
-import Tkinter as Tk
+import six.moves.tkinter as Tk
+import six.moves.cPickle as pickle
 import sys
-import cPickle as pickle
 
 import argparse
 import numpy as np
@@ -87,6 +87,9 @@ def get_args():
     parser = argparse.ArgumentParser(description='Run Earth Solid Angle viewer')
     parser.add_argument('infile', type=str,
                        help='Input data file root (e.g. FEB1411)')
+    parser.add_argument('--data-root', type=str,
+                        default=os.path.join(os.environ['SKA'], 'data', 'acis_taco'),
+                        help="Data root (default='$SKA/data/acis_taco')")
     args = parser.parse_args()
     return args
 
@@ -94,19 +97,19 @@ def get_input_data():
     args = get_args()
     infiles = [args.infile,
                args.infile + '.pkl',
-               os.path.join(os.path.dirname(__file__), args.infile),
-               os.path.join(os.path.dirname(__file__), args.infile + '.pkl')]
+               os.path.join(args.data_root, args.infile),
+               os.path.join(args.data_root, args.infile + '.pkl')]
     for infile in infiles:
         if os.path.exists(infile):
             try:
-                print 'Reading {0}'.format(infile)
-                dat = pickle.load(open(infile))
+                print('Reading {0}'.format(infile))
+                dat = pickle.load(open(infile, 'rb'))
                 return dat
             except:
-                print "ERROR: failed to load data file {0}".format(infile)
+                print("ERROR: failed to load data file {0}".format(infile))
                 raise
     else:
-        print "ERROR: could not find input data file {0} or {0}.pkl".format(args.infile)
+        print("ERROR: could not find input data file {0} or {0}.pkl".format(args.infile))
         sys.exit(1)
 
 def get_date(idx_img):
@@ -347,7 +350,7 @@ class SolarSystemObject(object):
         # Disable regions that are currently visible but not in next view
         for idx in self.idxs_visible - idxs:
             self.regions[idx]['line'].set_visible(False)
-            
+
         for idx in idxs - self.idxs_visible:
             region = self.regions[idx]
             try:

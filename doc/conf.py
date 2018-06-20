@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# taco documentation build configuration file, created by
+# acis_taco documentation build configuration file, created by
 # sphinx-quickstart on Mon Jun 15 16:40:44 2009.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -40,7 +40,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'taco'
+project = u'acis_taco'
 copyright = u'2013, Smithsonian Astrophysical Observatory'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -48,7 +48,7 @@ copyright = u'2013, Smithsonian Astrophysical Observatory'
 # built documents.
 #
 # The short X.Y version.
-from chandra.taco.version import version
+from acis_taco.version import version
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -161,7 +161,7 @@ html_show_sourcelink = False
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'tacodoc'
+htmlhelp_basename = 'acis_tacodoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -175,7 +175,7 @@ htmlhelp_basename = 'tacodoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'taco.tex', u'taco Documentation',
+  ('index', 'acis_taco.tex', u'acis_taco Documentation',
    u'Tom Aldcroft', 'manual'),
 ]
 

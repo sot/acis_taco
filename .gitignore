@@ -7,3 +7,6 @@ MANIFEST
 dist
 orbit*.fits
 rad_*
+*.pyc
+build
+acis_taco.egg-info

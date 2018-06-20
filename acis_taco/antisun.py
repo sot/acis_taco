@@ -1,4 +1,5 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+from __future__ import print_function
 import numpy as np
 from numpy import sin, cos, radians, arctan2, sqrt, arccos, degrees
 import Ska.quatutil
@@ -91,35 +92,35 @@ class AntiSun(object):
 
 if __name__ == '__main__':
     a = AntiSun(25., 25., (180-45) / 27.)
-    print a.img2phys(25., 25.), a.img2phys(25., 30.), a.img2phys(30., 25.)
-    print a.img2polar(25., 25.), a.img2polar(25., 30.), a.img2polar(30., 25.)
+    print(a.img2phys(25., 25.), a.img2phys(25., 30.), a.img2phys(30., 25.))
+    print(a.img2polar(25., 25.), a.img2polar(25., 30.), a.img2polar(30., 25.))
     sun_eci = np.array([-1.0, .0, 0])
 
-    print a.phys2polar(0., 0.), a.phys2polar(0., 0.1), a.phys2polar(0.1, 0.)
-    print a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci)
-    print a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci)
-    print
+    print(a.phys2polar(0., 0.), a.phys2polar(0., 0.1), a.phys2polar(0.1, 0.))
+    print(a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci))
+    print(a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci))
+    print()
 
     sun_eci = np.array([0.0, -1.0, 0.000])
-    print a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci)
-    print a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci)
-    print
+    print(a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci))
+    print(a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci))
+    print()
 
     sun_eci = np.array([0.0, -1.0, -1.0])
-    print a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci)
-    print a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci)
-    print
+    print(a.phys2eci(0., 0., sun_eci), a.phys2eci(0., 0.1, sun_eci), a.phys2eci(0.1, 0., sun_eci))
+    print(a.phys2sky(0., 0., sun_eci), a.phys2sky(0., 0.1, sun_eci), a.phys2sky(0.1, 0., sun_eci))
+    print()
 
     phys_x, phys_y = a.img2phys(12.0, 19.0)
-    print phys_x, phys_y
-    print a.img2polar(12.0, 19.0)
-    print a.img2eci(12.0, 19.0, sun_eci)
+    print(phys_x, phys_y)
+    print(a.img2polar(12.0, 19.0))
+    print(a.img2eci(12.0, 19.0, sun_eci))
     eci = a.phys2eci(phys_x, phys_y, sun_eci)
-    print eci
-    print a.eci2phys(eci, sun_eci)
-    print a.eci2polar(eci, sun_eci)
-    print a.eci2img(eci, sun_eci)
-    print
+    print(eci)
+    print(a.eci2phys(eci, sun_eci))
+    print(a.eci2polar(eci, sun_eci))
+    print(a.eci2img(eci, sun_eci))
+    print()
 
 
 
