@@ -1,7 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from .acis_taco import *
 from .antisun import AntiSun
-from .version import version as __version__
+
+__version__ = '4.0'
+
 
 def test(*args, **kwargs):
     """
