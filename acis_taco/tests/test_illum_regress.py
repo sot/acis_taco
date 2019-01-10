@@ -11,7 +11,7 @@ illum_gold = np.array([7.91359573e-01, 4.86349158e-01, 2.39867755e-01,
                        2.88178250e-03, 1.21989573e-03, 1.07290480e-04,   
                        0.00000000e+00, 0.00000000e+00])
 
-def test_illum_regress(save=False):
+def test_illum_regress():
     acis_taco.set_random_salt(1)
     illum = acis_taco.calc_earth_vis(p_chandra_eci, att)[1]
     assert_allclose(illum, illum_gold)
