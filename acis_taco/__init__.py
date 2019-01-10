@@ -2,7 +2,7 @@
 from .acis_taco import *
 from .antisun import AntiSun
 
-__version__ = '4.0'
+__version__ = '4.0.1'
 
 
 def test(*args, **kwargs):

@@ -285,7 +285,7 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
 def random_hemisphere(nsample):
     x = prng.uniform(low=0.3, high=1.0, size=nsample)
     x.sort()                    # x is not random
-    t = 2*np.pi * prng.uniform(nsample)
+    t = 2*np.pi * prng.uniform(size=nsample)
     r = np.sqrt(1-x**2)
     z = r * np.cos(t)
     y = r * np.sin(t)
