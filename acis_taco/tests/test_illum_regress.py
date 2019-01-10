@@ -14,7 +14,7 @@ def test_illum_regress(save=False):
         np.save("illum.npy", illum)
     else:
         illum_gold = np.load("illum.npy")
-    assert_allclose(illum, illum_gold)
+        assert_allclose(illum, illum_gold)
 
 
 if __name__ == "__main__":
