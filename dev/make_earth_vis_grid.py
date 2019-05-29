@@ -35,11 +35,11 @@ def make_earth_vis_grids(nside=32, n_reps=1):
     npix = astropy_healpix.nside_to_npix(nside)
     print(f'npix={npix}')
     lons, lats = hp.healpix_to_lonlat(np.arange(npix))
-    vis_arrays = []
     time0 = time.time()
 
     # Allow randomization between altitudes
     for i_rep in range(n_reps):
+        vis_arrays = []
         # Randomize the ray-trace points for each rep
         acis_taco._RANDOM_SALT = None
         acis_taco.SPHERE_XYZ = acis_taco.random_hemisphere(acis_taco.N_SPHERE)
@@ -78,19 +78,25 @@ def make_earth_vis_grids(nside=32, n_reps=1):
 
 def make_earth_vis_grid_fits(nside=32):
     """Collect the reps and average and write to FITS"""
+    from acis_taco import RAD_EARTH
     ii = 1
     vis_list = []
     while True:
         filename = Path(f'earth_vis_grid_nside{nside}_rep{ii}.npy')
         if filename.exists():
-            print(f'Reading {filename}')
-            vis_list.append(np.load(filename))
+            # print(f'Reading {filename}')
+            vis = np.load(filename)
+            vis_list.append(vis)
+            ii += 1
         else:
             break
 
     npix = astropy_healpix.nside_to_npix(nside)
 
-    vis = np.array(vis_list).mean(axis=0)
+    visl = np.array(vis_list)
+    print(visl.shape)
+
+    vis = visl.mean(axis=0)
 
     # Some sanity checking
     assert vis.shape == (100, npix)
@@ -101,14 +107,21 @@ def make_earth_vis_grid_fits(nside=32):
     visi = np.round(vis * scale)
     assert np.max(visi) < 2**16
 
-    visi2 = visi.astype(np.uint16)
+    # Convert to 16 bits.  Also transpose so that interpolation along
+    # distance is contiguous in memory.
+    # BTW see: https://github.com/astropy/astropy/issues/8726 for the
+    # origin of the .copy()
+    visi2 = visi.astype(np.uint16).transpose().copy()
 
     hdu = fits.PrimaryHDU(visi2)
     hdu.header['nside'] = nside
-    hdu.header['alt_min'] = alt_min
-    hdu.header['alt_max'] = alt_max
+    hdu.header['alt_min'] = alt_min.to_value(u.m)
+    hdu.header['alt_max'] = alt_max.to_value(u.m)
     hdu.header['n_alt'] = n_alt
+    hdu.header['scale'] = scale
+    hdu.header['earthrad'] = RAD_EARTH
 
     filename = Path(f'earth_vis_grid_nside{nside}.fits.gz')
     print(f'Writing {filename}')
-    hdu.writeto(filename)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(filename, overwrite=True)
