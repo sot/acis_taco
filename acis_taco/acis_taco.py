@@ -71,11 +71,14 @@ def make_taco():
 
 
 @_make_reproducible
-def calc_earth_vis(p_chandra_eci,
-                   chandra_att,
-                   max_reflect=10):
+def calc_earth_vis(p_chandra_eci=None,
+                   chandra_att=None,
+                   max_reflect=10,
+                   p_earth_body=None):
     """Calculate the relative Earth visibility for the ACIS radiator given
     the Chandra orbit position ``p_chandra_eci`` and attitude ``chandra_att``.
+    Alternately one can directly supply ``p_earth_body`` as a numpy array
+    representing the position of the Earth in Chandra body coordinates.
 
     The relative visibility is normalized so that 1.0 represents the entire
     radiator having visibility toward the surface point and being exactly
@@ -87,16 +90,22 @@ def calc_earth_vis(p_chandra_eci,
 
     :param p_chandra_eci: Chandra orbital position [x, y, z] (meters)
     :param chandra_att: Chandra attitude [ra, dec, roll] (deg)
-    
+    :param max_reflect: number of reflections to compute (default=10)
+    :param p_earth_body: optional 3-vector [x, y, z] (meters) of Earth
+        in Chandra body coordinates (instead of p_chandra_eci and
+        chandra_att inputs)
+
     :returns: relative visibility, total illumination, projected rays
     """
 
+    if p_earth_body is None:
+        # Calculate position of earth in ECI and Chandra body coords.
+        q_att = Quat(chandra_att)
 
-    # Calculate position of earth in ECI and Chandra body coords.  
-    q_att = Quat(chandra_att) 
-    
-    # For T = attitude transformation matrix then p_body = T^-1 p_eci
-    p_earth_body = np.dot(q_att.transform.transpose(), -np.array(p_chandra_eci))
+        # For T = attitude transformation matrix then p_body = T^-1 p_eci
+        p_earth_body = np.dot(q_att.transform.transpose(), -np.array(p_chandra_eci))
+    else:
+        p_earth_body = np.asarray(p_earth_body)  # no-op if already an array
 
     illum = np.zeros(max_reflect+1)
     out_rays = []
@@ -108,7 +117,7 @@ def calc_earth_vis(p_chandra_eci,
     # Quaternion to transform x-axis to the body-earth vector
     q_earth = quat_x_v2(p_earth_body)
     open_angle = np.arcsin(RAD_EARTH / np.sqrt(np.sum(p_earth_body**2)))
-    
+
     rays, earth_solid_angle = sphere_rand(open_angle)
     n_rays = len(rays)
     rays_to_earth = np.dot(q_earth.transform, rays.transpose()).transpose()  # shape (n_rays, 3)
