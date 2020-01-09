@@ -1,6 +1,5 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from setuptools import setup
-from acis_taco import __version__
 try:
     from testr.setup_helper import cmdclass
 except ImportError:
@@ -23,7 +22,8 @@ setup(name='acis_taco',
       description='ACIS Earth Solid Angle package',
       author_email='taldcroft@cfa.harvard.edu',
       url='http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/acis_taco/',
-      version=__version__,
+      use_scm_version=True,
+      setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
       zip_safe=False,
       packages=['acis_taco', 'acis_taco.tests'],
       scripts=scripts,

@@ -1,8 +1,10 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+import ska_helpers
+
 from .acis_taco import *
 from .antisun import AntiSun
 
-__version__ = '4.1'
+__version__ = ska_helpers.get_version(__package__)
 
 
 def test(*args, **kwargs):

@@ -48,7 +48,7 @@ copyright = u'2013, Smithsonian Astrophysical Observatory'
 # built documents.
 #
 # The short X.Y version.
-from acis_taco.version import version
+from acis_taco import __version__ as version
 # The full version, including alpha/beta/rc tags.
 release = version
 
