@@ -5,6 +5,7 @@ calculation of Earth illumination on the radiator surface.
 """
 import hashlib
 import functools
+from contextlib import ExitStack
 
 from Quaternion import Quat
 import numpy as np
@@ -38,7 +39,15 @@ def set_random_salt(salt):
     _RANDOM_SALT = salt
 
 def _encode_data(val):
-    return np.array_str(np.array(val, ndmin=1)).encode("utf8")
+    with ExitStack() as stack:
+        # Numpy 1.14 improved printing of arrays but this changes the encoded
+        # array data here. For compatibility with the 1.12 formatting that forms
+        # the basis of regression testing, use the old style here. np.printoptions
+        # was added in numpy 1.15, so if that is found then we must use the legacy
+        # print method. Note that legacy="1.12" does not seem to work.
+        if hasattr(np, 'printoptions'):
+            stack.enter_context(np.printoptions(legacy="1.13"))
+        return np.array_str(np.array(val, ndmin=1)).encode("utf8")
 
 def _make_reproducible(func):
     @functools.wraps(func)
@@ -139,7 +148,7 @@ def calc_earth_vis(p_chandra_eci=None,
     # Main ray-trace loop.  Calculate ray visibility for an increasing number
     # of reflections.  Rays that get blocked after N reflections are candidates
     # for getting out after N+1 reflections.
-    
+
     # Radiator size: 17 inches wide (X) by 19 inches long (Y), centered within
     # SIM shaded structure.
 
@@ -237,7 +246,7 @@ def sphere_grid(ngrid, open_angle):
     :returns: numpy array of unit length rays, grid area (steradians)
     """
     from math import sin, cos, radians, pi, sqrt
-    
+
     grid_area = 2*pi*(1-cos(open_angle))
     if ngrid <= 1:
         return np.array([[1., 0., 0.]]), grid_area
@@ -276,7 +285,7 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     :returns: numpy array of unit length rays, grid area (steradians)
     """
     from math import sin, cos, radians, pi, sqrt
-    
+
     xmin = cos(open_angle)
     grid_area = 2*pi*(1-xmin)
 
@@ -288,7 +297,7 @@ def sphere_rand(open_angle, min_ngrid=100, max_ngrid=10000):
     idx_sphere = prng.randint(idx_xmin, N_SPHERE, ngrid)
 
     return SPHERE_XYZ[idx_sphere, :], grid_area
-    
+
 
 @_make_reproducible
 def random_hemisphere(nsample):
