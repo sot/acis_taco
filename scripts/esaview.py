@@ -10,7 +10,7 @@ import argparse
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
@@ -157,7 +157,7 @@ class IllumImage(object):
         i1 = imgs_idx_map[i1]
         img = imgs[i0:i1+1].sum(0)
 
-        img_rgba = matplotlib.cm.spectral(img / 7.2)
+        img_rgba = matplotlib.cm.nipy_spectral(img / 7.2)
         img_rgba[:, :, 3] = alpha_slider.value.get()
         self.image.set_data(img_rgba)
         self.ax.set_title(get_date(i_center))
@@ -443,7 +443,7 @@ image_frame.pack(side=Tk.LEFT, expand=1, fill='both')
 image_canvas = FigureCanvasTkAgg(fig, master=image_frame)
 image_canvas.get_tk_widget().pack(side=Tk.LEFT, fill=Tk.BOTH, expand=1)
 
-image_toolbar = NavigationToolbar2TkAgg(image_canvas, image_frame)
+image_toolbar = NavigationToolbar2Tk(image_canvas, image_frame)
 image_toolbar.update()
 image_canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
 
