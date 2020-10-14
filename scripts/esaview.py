@@ -47,7 +47,7 @@ def plot_cxctime(times, y, fmt='-b', fig=None, ax=None, yerr=None, xerr=None, tz
     :param y: y values
     :param fmt: plot format (default = '-b')
     :param fig: pyplot figure object (optional)
-    :param yerr: error on y values, may be [ scalar | N, Nx1, or 2xN array-like ] 
+    :param yerr: error on y values, may be [ scalar | N, Nx1, or 2xN array-like ]
     :param xerr: error on x values in units of DAYS (may be [ scalar | N, Nx1, or 2xN array-like ] )
     :param tz: timezone string
     :param state_codes: list of (raw_count, state_code) tuples
@@ -133,7 +133,7 @@ def get_index_lims():
 
 class IllumImage(object):
     def __init__(self, fig):
-        self.ax = fig.add_axes([0.1, 0.2, 0.8, 0.75], axisbg='k')
+        self.ax = fig.add_axes([0.1, 0.2, 0.8, 0.75], facecolor='k')
         self.ax.format_coord = lambda x,y: ""
         self.ax.set_xticklabels([])
         self.ax.set_yticklabels([])
@@ -142,7 +142,7 @@ class IllumImage(object):
         maxscale = 0.4 * 3 * 6   # illum = 3 hours at 0.4
         self.image = self.ax.imshow(imgs[0], interpolation='bilinear', animated=True, vmin=0,
                           vmax=maxscale, alpha=1.0, origin='lower')
-        self.image.set_cmap('spectral')
+        self.image.set_cmap('nipy_spectral')
         self.draw_pitch_contours()
         self.ax.set_autoscale_on(False)
 
@@ -193,7 +193,7 @@ class Taco3dView(object):
     def destroy(self):
         self.window.destroy()
         self.window = None
-        
+
     def draw_taco3d(self):
         TACO_X_OFF = 250
         TACO_Y_OFF = 689
@@ -221,14 +221,14 @@ class Taco3dView(object):
         xx, yy = np.meshgrid(x, y)
         zz = np.zeros_like(xx) - RAD_Z_OFF
         self.ax.plot_surface(xx, yy, zz, shade=True, color='y')
-        
+
         self.ax.set_xlim3d(-700, 700)
         self.ax.set_ylim3d(-700, 700)
         self.ax.set_zlim3d(-700, 700)
         self.ax.set_xlabel('X')
         self.ax.set_ylabel('Y')
         self.ax.set_zlabel('Z')
-        
+
     def update(self, ra, dec):
         if self.window:
             self.ax.view_init(dec, ra)
@@ -260,7 +260,7 @@ class ImageCoords(object):
         self.phi.grid(row=1, column=2)
         self.earth_ra_cb.grid(row=2, column=2)
         self.earth_dec_cb.grid(row=2, column=1)
-    
+
     def update(self, event):
         if event.inaxes != self.ax:
             return
@@ -343,7 +343,7 @@ class SolarSystemObject(object):
 
     def update(self, *args):
         i0, i1, i_center = get_index_lims()
-        stride = (i1 - i0) / 30 + 1
+        stride = (i1 - i0) // 30 + 1
         idxs = np.arange(0, n_times, stride)
         idx_center = idxs[np.argmin(np.abs(idxs - i_center))]
         idxs = set(idxs[(idxs >= i0) & (idxs <= i1)])
@@ -370,7 +370,7 @@ class Slider(object):
     def __init__(self, minval, maxval, label_command=None,
                  side=Tk.TOP, anchor='w', master=None, **kwargs):
         self.label_command = label_command
-        
+
         self.frame = Tk.Frame(master=master)
         self.frame.pack(side=side, anchor=anchor)
 
@@ -393,7 +393,7 @@ class Slider(object):
     def value_changed(self, scaleval):
         if self.label_command is not None:
             self.label_var.set(self.label_command(self.value.get()))
-        
+
 # Load data and set some globals (hopefully minimize this later)
 dat = get_input_data()
 times = dat['times']
