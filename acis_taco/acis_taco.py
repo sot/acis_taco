@@ -168,7 +168,7 @@ def calc_earth_vis(p_chandra_eci=None,
         dx = (taco_x - rad_x) / rays_x
 
         # Find rays that intersect shade within Y limits of the shade (0, N_TACO mm)
-        ray_taco_iys = np.array(rad_y + rays_y * dx, dtype=np.int_)
+        ray_taco_iys = np.array(rad_y + rays_y * dx, dtype=int)
         y_ok = (ray_taco_iys >= 0) & (ray_taco_iys < N_TACO)
         y_not_ok = ~y_ok
         ray_taco_iys[y_not_ok] = 0
