@@ -1,26 +1,27 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import print_function
-import os
-import six.moves.tkinter as Tk
-import six.moves.cPickle as pickle
-import sys
 
 import argparse
-import numpy as np
+import os
+import sys
+
 import matplotlib
+import numpy as np
+import six.moves.cPickle as pickle
+import six.moves.tkinter as Tk
+
 matplotlib.use('TkAgg')
+import ska_matplotlib
+import ska_quatutil
+import ska_sun
+from chandra_time import DateTime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.mplot3d import Axes3D
-
-import Ska.quatutil
-from Chandra.Time import DateTime
-import Ska.Matplotlib
-from Ska.Matplotlib import cxctime2plotdate
-import Ska.Sun
 from Quaternion import Quat
+from ska_matplotlib import cxctime2plotdate
+
 
 def plot_cxctime(times, y, fmt='-b', fig=None, ax=None, yerr=None, xerr=None, tz=None,
                  state_codes=None, interactive=True, **kwargs):
@@ -68,18 +69,18 @@ def plot_cxctime(times, y, fmt='-b', fig=None, ax=None, yerr=None, xerr=None, tz
         ax.xaxis_date(tz)
     else:
         ax.plot_date(cxctime2plotdate(times), y, fmt=fmt, **kwargs)
-    ticklocs = Ska.Matplotlib.set_time_ticks(ax)
+    ticklocs = ska_matplotlib.set_time_ticks(ax)
     fig.autofmt_xdate()
 
     if state_codes is not None:
         counts, codes = zip(*state_codes)
-        ax.yaxis.set_major_locator(Ska.Matplotlib.FixedLocator(counts))
-        ax.yaxis.set_major_formatter(Ska.Matplotlib.FixedFormatter(codes))
+        ax.yaxis.set_major_locator(ska_matplotlib.FixedLocator(counts))
+        ax.yaxis.set_major_formatter(ska_matplotlib.FixedFormatter(codes))
 
     # If plotting interactively then show the figure and enable interactive resizing
     if interactive and hasattr(fig, 'show'):
         # fig.canvas.draw()
-        ax.callbacks.connect('xlim_changed', Ska.Matplotlib.remake_ticks)
+        ax.callbacks.connect('xlim_changed', ska_matplotlib.remake_ticks)
 
     return ticklocs, fig, ax
 
@@ -271,10 +272,10 @@ class ImageCoords(object):
         earth_eci = ephem_xyzs['earth'][:, i_ephem]
         ra, dec = antisun.img2sky(x, y, sun_eci)
         r, phi = antisun.img2polar(x, y)
-        roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
+        roll = ska_sun.nominal_roll(ra, dec, times[i_ephem])
         q_att = Quat([ra, dec, roll])
         earth_cb = np.dot(q_att.transform.transpose(), earth_eci)
-        earth_ra_cb, earth_dec_cb = Ska.quatutil.eci2radec(earth_cb)
+        earth_ra_cb, earth_dec_cb = ska_quatutil.eci2radec(earth_cb)
         pitch = 180 - r
         self.textvar['ra'].set('{0:.4f}'.format(ra))
         self.textvar['dec'].set('{0:.4f}'.format(dec))
@@ -335,7 +336,7 @@ class SolarSystemObject(object):
             ecis = np.array([np.cos(theta) * np.ones(len(phis)),
                             np.sin(phis) * sin_theta,
                             np.cos(phis) * sin_theta])  # OFLS uses -cos(phi)
-            quat_x_to_obj = Ska.quatutil.quat_x_to_vec(xyz)
+            quat_x_to_obj = ska_quatutil.quat_x_to_vec(xyz)
             obj_ecis = np.dot(quat_x_to_obj.transform, ecis)
             sun_eci = ephem_xyzs['sun'][:, idx]
             x, y = antisun.eci2img(obj_ecis, sun_eci)

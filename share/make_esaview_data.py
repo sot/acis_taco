@@ -9,14 +9,15 @@ from __future__ import print_function
 import os
 from datetime import date
 
-import Ska.Sun
-import Ska.engarchive.fetch_sci as fetch
-import Ska.quatutil
-import six.moves.cPickle as pickle
+import cheta.fetch_sci as fetch
 import numpy as np
-from Chandra.Time import DateTime
+import six.moves.cPickle as pickle
+import ska_quatutil
+import ska_sun
+from chandra_time import DateTime
 
 import acis_taco
+
 
 def get_options():
     from optparse import OptionParser
@@ -106,7 +107,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
             continue
         sun_eci = ephem_xyzs['solar'][:, i_ephem] - ephem_xyzs['orbit'][:, i_ephem]
         att_vecs = antisun.img2eci(xs, ys, sun_eci)
-        ras, decs = Ska.quatutil.eci2radec(att_vecs)
+        ras, decs = ska_quatutil.eci2radec(att_vecs)
         illum_map = np.zeros((ngrid, ngrid), dtype=np.float32)
         print(i_ephem, n_ephem, ephem_xyz)
         for iy in range(ngrid):
@@ -114,7 +115,7 @@ def calc_perigee_map(start='2010:114:20:00:00', stop='2010:117:16:00:00', ngrid=
                 i_vec = iy * ngrid + ix
                 if antisun_pitches[i_vec] < 135:
                     ra, dec = ras[i_vec], decs[i_vec]
-                    roll = Ska.Sun.nominal_roll(ra, dec, times[i_ephem])
+                    roll = ska_sun.nominal_roll(ra, dec, times[i_ephem])
                     _, att_illums, _ = acis_taco.calc_earth_vis(ephem_xyz, [ra, dec, roll], max_reflect=5)
                     illum = sum(att_illums)
                 else:

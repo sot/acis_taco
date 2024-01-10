@@ -12,13 +12,13 @@ import time
 
 import numpy as np
 
-import Ska.Table
+import ska_table
 import Quaternion
-from Chandra.Time import DateTime
-from Ska.TelemArchive.fetch import fetch
-import Ska.Numpy
+from chandra_time import DateTime
+from ska_telemarchive.fetch import fetch
+import ska_numpy
 import matplotlib.pyplot as plt
-from Ska.Matplotlib import plot_cxctime
+from ska_matplotlib import plot_cxctime
 
 import test_taco as taco
 
@@ -83,7 +83,7 @@ def main():
 
     # Get orbital ephemeris in requested time range
     print 'Reading orbital ephemeris file', opt.ephemfile
-    ephem = Ska.Table.read_table(opt.ephemfile)
+    ephem = ska_table.read_table(opt.ephemfile)
     tstart = DateTime(opt.tstart).secs
     tstop = DateTime(opt.tstop).secs
     ephem = ephem[(ephem.Time >= tstart)
@@ -102,10 +102,10 @@ def main():
     cols, atts = fetch(start=ephem.Time[0], stop=ephem.Time[-1], dt=dt, time_format='secs',
                  colspecs=['aoattqt1', 'aoattqt2',  'aoattqt3',  'aoattqt4'])
     atts = np.rec.fromrecords(atts, names=cols)
-    q1s = Ska.Numpy.interpolate(atts.aoattqt1, atts.date, ephem.Time)
-    q2s = Ska.Numpy.interpolate(atts.aoattqt2, atts.date, ephem.Time)
-    q3s = Ska.Numpy.interpolate(atts.aoattqt3, atts.date, ephem.Time)
-    q4s = Ska.Numpy.interpolate(atts.aoattqt4, atts.date, ephem.Time)
+    q1s = ska_numpy.interpolate(atts.aoattqt1, atts.date, ephem.Time)
+    q2s = ska_numpy.interpolate(atts.aoattqt2, atts.date, ephem.Time)
+    q3s = ska_numpy.interpolate(atts.aoattqt3, atts.date, ephem.Time)
+    q4s = ska_numpy.interpolate(atts.aoattqt4, atts.date, ephem.Time)
 
     # Divy up calculations amongst the n-processors
     i0s = range(0, len(q1s), len(q1s) // opt.nproc + 1)
