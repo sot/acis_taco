@@ -13,16 +13,16 @@ import time
 import numpy as np
 from multiprocessing import Process, Queue
 
-import Ska.Table
+import ska_table
 import Quaternion
-from Chandra.Time import DateTime
-import Ska.engarchive.fetch_sci as fetch
-import Ska.Numpy
+from chandra_time import DateTime
+import cheta.fetch_sci as fetch
+import ska_numpy
 import matplotlib
 if __name__ == '__main__':
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from Ska.Matplotlib import plot_cxctime
+from ska_matplotlib import plot_cxctime
 
 import taco2 as taco
 
@@ -129,9 +129,9 @@ def main():
     q4s = qatts['aoattqt4'].vals[::opt.sample]
     q_times = qatts['aoattqt1'].times[::opt.sample]
 
-    ephem_x_vals = Ska.Numpy.interpolate(ephem_x.vals, ephem_times, q_times)
-    ephem_y_vals = Ska.Numpy.interpolate(ephem_y.vals, ephem_times, q_times)
-    ephem_z_vals = Ska.Numpy.interpolate(ephem_z.vals, ephem_times, q_times)
+    ephem_x_vals = ska_numpy.interpolate(ephem_x.vals, ephem_times, q_times)
+    ephem_y_vals = ska_numpy.interpolate(ephem_y.vals, ephem_times, q_times)
+    ephem_z_vals = ska_numpy.interpolate(ephem_z.vals, ephem_times, q_times)
 
     chandra_ecis = np.array([ephem_x_vals, ephem_y_vals, ephem_z_vals]).copy().transpose()
 
@@ -196,7 +196,7 @@ def main():
 
     # Write results to FITS table
     filename = opt.out + '.fits'
-    Ska.Table.write_fits_table(opt.out + '.fits', illum)
+    ska_table.write_fits_table(opt.out + '.fits', illum)
     print 'Created FITS table', filename
 
     if opt.movie:

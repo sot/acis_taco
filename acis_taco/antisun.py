@@ -1,8 +1,10 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import print_function
+
 import numpy as np
-from numpy import sin, cos, radians, arctan2, sqrt, arccos, degrees
-import Ska.quatutil
+import ska_quatutil
+from numpy import arccos, arctan2, cos, degrees, radians, sin, sqrt
+
 
 class AntiSun(object):
     def __init__(self, phys_x0, phys_y0, img_pix_scale):
@@ -44,7 +46,7 @@ class AntiSun(object):
         eci_img = np.array([cos(theta),
                             sin(phi) * sin_theta,
                             cos(phi) * sin_theta])
-        self.q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
+        self.q_x_to_antisun = ska_quatutil.quat_x_to_vec(-sun_eci)
         eci = np.dot(self.q_x_to_antisun.transform, eci_img)
         return eci
 
@@ -55,7 +57,7 @@ class AntiSun(object):
 
     def phys2sky(self, phys_x, phys_y, sun_eci):
         eci = self.phys2eci(phys_x, phys_y, sun_eci)
-        ra, dec = Ska.quatutil.eci2radec(eci)
+        ra, dec = ska_quatutil.eci2radec(eci)
         return ra, dec
 
     def eci2polar(self, eci, sun_eci):
@@ -64,7 +66,7 @@ class AntiSun(object):
             = arctan2(sin(theta) * sin(phi), sin(theta) * cos(phi))
             = arctan2(y, z)
         """
-        q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
+        q_x_to_antisun = ska_quatutil.quat_x_to_vec(-sun_eci)
         eci_img = np.dot(q_x_to_antisun.transform.transpose(), eci)
         theta = arccos(eci_img[0])
         phi = arctan2(eci_img[1], eci_img[2])
@@ -72,7 +74,7 @@ class AntiSun(object):
         return r, phi
     
     def eci2phys(self, eci, sun_eci):
-        q_x_to_antisun = Ska.quatutil.quat_x_to_vec(-sun_eci)
+        q_x_to_antisun = ska_quatutil.quat_x_to_vec(-sun_eci)
         eci_img = np.dot(q_x_to_antisun.transform.transpose(), eci)
         r = degrees(arccos(eci_img[0]))
         r12 = np.sqrt(eci_img[1]**2 + eci_img[2]**2)
